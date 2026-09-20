@@ -156,3 +156,104 @@ docker compose --profile full up --build
 - **Phase 4** — RabbitMQ events + Notifications Worker + Outbox Pattern
 - **Phase 5** — Observability (OpenTelemetry, correlation ID, structured logging)
 - **Phase 6** — Authentication between services (JWT)
+
+---
+
+## What Was Built — Phase 1
+
+### Why this structure?
+
+One of the most common mistakes when "moving to microservices" is keeping a shared database. Services that share a database are not truly independent — a schema change in one breaks another, deployments become coupled, and teams step on each other's work. This project enforces **Database per Service** from day one: three separate PostgreSQL instances, one per business domain.
+
+### Solution layout
+
+The solution contains **19 projects** organized into four areas:
+
+**Gateway** — a single YARP reverse proxy that receives all client requests and routes them to the correct service based on the URL path. The client never calls a service directly. This is the only entry point.
+
+**Services** — each service is a fully independent vertical slice with its own four layers following Domain-Driven Design:
+- `Domain` — entities, business rules, repository interfaces. No framework dependencies.
+- `Application` — use cases, DTOs, service orchestration. Knows only the Domain.
+- `Infrastructure` — EF Core, PostgreSQL, repository implementations. The only layer that touches the database.
+- `Api` — ASP.NET Core controllers, DI wiring, HTTP concerns.
+
+**BuildingBlocks** — three small libraries with a strict rule: they may only contain shared infrastructure contracts, never domain logic. Services do not share domain models with each other.
+
+**Payments.FakeProvider** — a minimal ASP.NET Core app that simulates an external payment gateway. Its behavior is configurable via query string: `?behavior=success`, `fail`, `timeout`, or `slow`. This will be the foundation for the resilience articles (retries, circuit breaker).
+
+### Catalog Service — what is implemented
+
+The Catalog Service is the only fully implemented service in Phase 1. It demonstrates the complete DDD layered structure that every other service will follow.
+
+**Domain layer**
+
+`Product` is the aggregate root. It owns its own state — all properties use `private set`, and state changes go through explicit methods (`Create`, `Update`, `Deactivate`, `ReduceStock`). Business rules live here, not in the controller or service:
+
+```csharp
+public void ReduceStock(int quantity)
+{
+    if (!HasStock(quantity))
+        throw new InvalidOperationException(
+            $"Insufficient stock for '{Name}'. Available: {StockQuantity}, Requested: {quantity}.");
+
+    StockQuantity -= quantity;
+    UpdatedAt = DateTime.UtcNow;
+}
+```
+
+`IProductRepository` is defined in the Domain layer. The Application layer depends on this interface, never on EF Core or PostgreSQL.
+
+**Infrastructure layer**
+
+`ProductRepository` implements `IProductRepository` using EF Core and PostgreSQL. Pagination is done at the database level with `Skip/Take` — no row is loaded into memory before filtering. The repository is the only class in the entire solution that knows about `CatalogDbContext`.
+
+**Application layer**
+
+`ProductService` orchestrates use cases by calling the repository through its interface. It maps domain entities to DTOs for the API layer. No SQL, no HTTP, no EF Core here.
+
+**API layer**
+
+`ProductsController` handles HTTP concerns only: status codes, route parameters, response mapping. All business logic stays in the service. On startup, the database migration runs automatically and 20 products across 4 categories are seeded.
+
+**Endpoints**
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/products` | Paginated product list (filter by category) |
+| `GET` | `/api/products/{id}` | Single product by ID |
+| `GET` | `/api/products/categories` | Distinct category list |
+| `POST` | `/api/products` | Create a product |
+| `PUT` | `/api/products/{id}` | Update a product |
+| `DELETE` | `/api/products/{id}` | Soft-delete (sets IsActive = false) |
+| `GET` | `/health` | Health check |
+
+### YARP Gateway
+
+The gateway reads its routing table from `appsettings.json` — no code changes are needed to add or change a route. In Phase 1 it handles three routes:
+
+```
+/api/products/** → catalog-api:8080
+/api/orders/**   → orders-api:8080
+/api/payments/** → payments-api:8080
+```
+
+Later phases will add authentication at the gateway edge (rate limiting, JWT validation) without touching the downstream services.
+
+### Docker Compose profiles
+
+The compose file uses profiles so you only start what you need:
+
+```bash
+# Just the infrastructure (3 PostgreSQL instances + RabbitMQ)
+docker compose --profile infra up -d
+
+# Infrastructure + Catalog (useful while building Phase 2)
+docker compose --profile catalog up -d
+
+# Everything
+docker compose --profile full up --build
+```
+
+### Orders, Payments and Notifications — stubs
+
+These services exist as buildable, deployable projects with a `/health` endpoint. They return a JSON response explaining which phase will implement them. This is intentional: the goal of Phase 1 is to prove the skeleton compiles, the Docker network works, and the gateway routes correctly — before writing any business logic in the other services.
