@@ -119,8 +119,15 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__PaymentsDb: "Host=payments-db;Port=5432;Database=payments_db;Username=postgres;Password=postgres"
+      PaymentProviderUrl: "http://fake-payment-provider:8080"
     ports:
       - "5103:8080"
+    depends_on:
+      payments-db:
+        condition: service_healthy
+      fake-payment-provider:
+        condition: service_started
     profiles: ["full"]
 
   fake-payment-provider:

@@ -152,7 +152,7 @@ docker compose --profile full up --build
 
 - **Phase 1** ✅ — Skeleton, Gateway (YARP), Catalog Service (full CRUD + PostgreSQL)
 - **Phase 2** ✅ — Orders Service + synchronous HTTP communication (Catalog → Orders)
-- **Phase 3** — Payments Service + Fake Provider + resilience (Polly: retry, circuit breaker)
+- **Phase 3** ✅ — Payments Service + Fake Provider + resilience (retry, circuit breaker, timeout)
 - **Phase 4** — RabbitMQ events + Notifications Worker + Outbox Pattern
 - **Phase 5** — Observability (OpenTelemetry, correlation ID, structured logging)
 - **Phase 6** — Authentication between services (JWT)
@@ -379,3 +379,93 @@ docker compose --profile full up --build
 ```
 
 Orders API docs (Scalar): `http://localhost:5102/scalar/v1`
+
+---
+
+## What Was Built — Phase 3
+
+### The resilience problem
+
+Synchronous HTTP communication (Phase 2) has a hidden fragility: if the downstream service is slow or unavailable, every caller blocks, threads accumulate, and the failure cascades through the entire system. A single slow third-party payment provider can bring down the service that calls it.
+
+Phase 3 introduces the Payments Service and makes resilience explicit — not just in code, but as a **demo you can trigger on purpose** using the Fake Payment Provider.
+
+### The Fake Payment Provider — a controlled chaos engine
+
+The FakeProvider (port 5104) accepts a `?behavior=` query parameter that changes its response:
+
+| Behavior | What happens |
+|---|---|
+| `success` (default) | Returns 200 with a transaction ID after ~200 ms |
+| `fail` | Returns 422 — payment declined by provider |
+| `timeout` | Waits 31 seconds, then returns 504 — longer than any retry window |
+| `slow` | Waits 3 seconds — triggers the per-attempt timeout and retry |
+
+In the Payments API, you control this via the request body's `ProviderBehavior` field. This lets you demonstrate every resilience scenario without touching infrastructure.
+
+### Resilience policies — layered and named
+
+The Payments Service registers the HTTP client with `AddStandardResilienceHandler` and configures each policy explicitly:
+
+```csharp
+.AddStandardResilienceHandler(options =>
+{
+    // Total budget for the entire operation including all retries: 15 s.
+    options.TotalRequestTimeout.Timeout = TimeSpan.FromSeconds(15);
+
+    // Per-attempt timeout: give up on a single try after 5 s.
+    // With "slow" behavior (3 s delay), this allows the first attempt to complete.
+    // With "timeout" behavior (31 s delay), this fires and triggers a retry.
+    options.AttemptTimeout.Timeout = TimeSpan.FromSeconds(5);
+
+    // Retry: up to 3 more attempts, with exponential back-off + jitter.
+    options.Retry.MaxRetryAttempts = 3;
+    options.Retry.Delay = TimeSpan.FromMilliseconds(500);
+    options.Retry.UseJitter = true;
+
+    // Circuit breaker: if 50%+ of calls fail in a 30 s window (min 5 calls),
+    // stop calling the provider for 10 s. Callers get an immediate failure
+    // instead of waiting for each attempt to time out.
+    options.CircuitBreaker.FailureRatio = 0.5;
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+    options.CircuitBreaker.MinimumThroughput = 5;
+    options.CircuitBreaker.BreakDuration = TimeSpan.FromSeconds(10);
+});
+```
+
+### Failure recording — no re-throw
+
+A key design decision in `PaymentService`: when the provider is unreachable or the circuit breaker opens, the exception is caught and the payment is recorded as `Failed` in the database — it is **not** re-thrown to the controller. This means:
+
+1. The API always returns a response (201 Created) with the payment record.
+2. The `Status` field in the response tells the client what happened.
+3. The payment ID is preserved, enabling retry workflows in future phases.
+
+```csharp
+try
+{
+    result = await providerClient.ChargeAsync(chargeRequest, cancellationToken);
+}
+catch (Exception ex)
+{
+    payment.Fail($"Provider communication error: {ex.Message}");
+    await paymentRepository.UpdateAsync(payment, cancellationToken);
+    return MapToDto(payment); // returns 201 with Status = Failed
+}
+```
+
+### Endpoints
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/payments` | Paginated payment list |
+| `GET` | `/api/payments/{id}` | Payment by ID |
+| `GET` | `/api/payments/order/{orderId}` | All payments for a given order |
+| `POST` | `/api/payments` | Process a payment (calls FakeProvider) |
+| `GET` | `/health` | Health check |
+
+### Demonstrating the circuit breaker
+
+Start everything and run 5 consecutive `POST /api/payments` requests with `"providerBehavior": "timeout"`. After 5 failures, the circuit opens and subsequent calls return immediately with `Status: Failed` and a message like `"circuit breaker is open"` — without waiting for the timeout.
+
+Payments API docs (Scalar): `http://localhost:5103/scalar/v1`
