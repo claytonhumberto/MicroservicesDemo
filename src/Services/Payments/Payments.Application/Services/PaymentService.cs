@@ -1,3 +1,5 @@
+using BuildingBlocks.Contracts.Events;
+using MassTransit;
 using Payments.Application.Clients;
 using Payments.Application.DTOs;
 using Payments.Domain.Entities;
@@ -5,7 +7,10 @@ using Payments.Domain.Repositories;
 
 namespace Payments.Application.Services;
 
-public class PaymentService(IPaymentRepository paymentRepository, IPaymentProviderClient providerClient)
+public class PaymentService(
+    IPaymentRepository paymentRepository,
+    IPaymentProviderClient providerClient,
+    IPublishEndpoint publishEndpoint)
 {
     public async Task<PagedResult<PaymentDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -42,18 +47,31 @@ public class PaymentService(IPaymentRepository paymentRepository, IPaymentProvid
         }
         catch (Exception ex)
         {
-            // Provider unreachable or circuit breaker open — record failure without re-throwing
             payment.Fail($"Provider communication error: {ex.Message}");
             await paymentRepository.UpdateAsync(payment, cancellationToken);
             return MapToDto(payment);
         }
 
         if (result.Success)
+        {
             payment.Approve(result.TransactionId!);
-        else
-            payment.Decline(result.ErrorMessage ?? "Payment declined by provider");
+            await paymentRepository.UpdateAsync(payment, cancellationToken);
 
-        await paymentRepository.UpdateAsync(payment, cancellationToken);
+            await publishEndpoint.Publish(new PaymentApproved(
+                PaymentId: payment.Id,
+                OrderId: payment.OrderId,
+                Amount: payment.Amount,
+                Currency: payment.Currency,
+                TransactionId: payment.TransactionId!,
+                CustomerEmail: request.CustomerEmail,
+                ApprovedAt: payment.UpdatedAt), cancellationToken);
+        }
+        else
+        {
+            payment.Decline(result.ErrorMessage ?? "Payment declined by provider");
+            await paymentRepository.UpdateAsync(payment, cancellationToken);
+        }
+
         return MapToDto(payment);
     }
 

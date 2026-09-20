@@ -15,6 +15,7 @@ public record PaymentDto(
 
 public record ProcessPaymentRequest(
     Guid OrderId,
+    string CustomerEmail,
     decimal Amount,
     string Currency,
     string CardToken,

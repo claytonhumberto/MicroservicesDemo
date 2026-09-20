@@ -102,6 +102,9 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__OrdersDb: "Host=orders-db;Port=5432;Database=orders_db;Username=postgres;Password=postgres"
       CatalogServiceUrl: "http://catalog-api:8080"
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Username: "guest"
+      RabbitMQ__Password: "guest"
     ports:
       - "5102:8080"
     depends_on:
@@ -109,6 +112,8 @@ services:
         condition: service_healthy
       catalog-api:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     profiles: ["full"]
 
   payments-api:
@@ -121,6 +126,9 @@ services:
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__PaymentsDb: "Host=payments-db;Port=5432;Database=payments_db;Username=postgres;Password=postgres"
       PaymentProviderUrl: "http://fake-payment-provider:8080"
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Username: "guest"
+      RabbitMQ__Password: "guest"
     ports:
       - "5103:8080"
     depends_on:
@@ -128,6 +136,8 @@ services:
         condition: service_healthy
       fake-payment-provider:
         condition: service_started
+      rabbitmq:
+        condition: service_healthy
     profiles: ["full"]
 
   fake-payment-provider:
@@ -148,6 +158,9 @@ services:
     container_name: notifications-worker
     environment:
       DOTNET_ENVIRONMENT: Development
+      RabbitMQ__Host: "rabbitmq"
+      RabbitMQ__Username: "guest"
+      RabbitMQ__Password: "guest"
     depends_on:
       rabbitmq:
         condition: service_healthy

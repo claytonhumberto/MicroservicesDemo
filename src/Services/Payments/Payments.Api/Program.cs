@@ -1,3 +1,4 @@
+using BuildingBlocks.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Payments.Application.Services;
 using Payments.Infrastructure;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddPaymentsInfrastructure(builder.Configuration);
+builder.Services.AddMassTransitPublisher(builder.Configuration);
 builder.Services.AddScoped<PaymentService>();
 
 var app = builder.Build();

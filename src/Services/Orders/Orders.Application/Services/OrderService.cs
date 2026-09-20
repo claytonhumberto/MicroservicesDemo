@@ -1,3 +1,5 @@
+using BuildingBlocks.Contracts.Events;
+using MassTransit;
 using Orders.Application.Clients;
 using Orders.Application.DTOs;
 using Orders.Domain.Entities;
@@ -5,7 +7,10 @@ using Orders.Domain.Repositories;
 
 namespace Orders.Application.Services;
 
-public class OrderService(IOrderRepository orderRepository, ICatalogClient catalogClient)
+public class OrderService(
+    IOrderRepository orderRepository,
+    ICatalogClient catalogClient,
+    IPublishEndpoint publishEndpoint)
 {
     public async Task<PagedResult<OrderDto>> GetPagedAsync(int page, int pageSize, CancellationToken cancellationToken = default)
     {
@@ -57,6 +62,14 @@ public class OrderService(IOrderRepository orderRepository, ICatalogClient catal
 
         order.Confirm();
         await orderRepository.UpdateAsync(order, cancellationToken);
+
+        await publishEndpoint.Publish(new OrderConfirmed(
+            OrderId: order.Id,
+            CustomerName: order.CustomerName,
+            CustomerEmail: order.CustomerEmail,
+            TotalAmount: order.TotalAmount,
+            ConfirmedAt: order.UpdatedAt), cancellationToken);
+
         return MapToDto(order);
     }
 

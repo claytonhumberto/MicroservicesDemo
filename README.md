@@ -153,7 +153,7 @@ docker compose --profile full up --build
 - **Phase 1** ✅ — Skeleton, Gateway (YARP), Catalog Service (full CRUD + PostgreSQL)
 - **Phase 2** ✅ — Orders Service + synchronous HTTP communication (Catalog → Orders)
 - **Phase 3** ✅ — Payments Service + Fake Provider + resilience (retry, circuit breaker, timeout)
-- **Phase 4** — RabbitMQ events + Notifications Worker + Outbox Pattern
+- **Phase 4** ✅ — RabbitMQ events + MassTransit + Notifications Worker
 - **Phase 5** — Observability (OpenTelemetry, correlation ID, structured logging)
 - **Phase 6** — Authentication between services (JWT)
 
@@ -469,3 +469,104 @@ catch (Exception ex)
 Start everything and run 5 consecutive `POST /api/payments` requests with `"providerBehavior": "timeout"`. After 5 failures, the circuit opens and subsequent calls return immediately with `Status: Failed` and a message like `"circuit breaker is open"` — without waiting for the timeout.
 
 Payments API docs (Scalar): `http://localhost:5103/scalar/v1`
+
+---
+
+## What Was Built — Phase 4
+
+### The problem with synchronous communication everywhere
+
+In Phase 2 and 3, all communication is synchronous: the caller waits for the callee to respond. This works well for reads and for operations where the caller needs the result immediately. But for notifications — "send the customer an email after their payment is approved" — the caller does not need to wait. If the notification system is slow or down, the payment should still succeed.
+
+This is the fundamental motivation for asynchronous messaging.
+
+### Event-driven architecture with RabbitMQ and MassTransit
+
+Phase 4 introduces two integration events published to RabbitMQ:
+
+| Event | Publisher | Consumer |
+|---|---|---|
+| `OrderConfirmed` | Orders Service | Notifications Worker |
+| `PaymentApproved` | Payments Service | Notifications Worker |
+
+Events are defined in `BuildingBlocks.Contracts` — the one shared library that crosses service boundaries. Each event is a simple `record` with no behavior, only data:
+
+```csharp
+public record PaymentApproved(
+    Guid PaymentId,
+    Guid OrderId,
+    decimal Amount,
+    string Currency,
+    string TransactionId,
+    string CustomerEmail,
+    DateTime ApprovedAt);
+```
+
+### MassTransit as the messaging abstraction
+
+MassTransit sits between the application code and RabbitMQ. Publishers call `IPublishEndpoint.Publish<T>()` — they never touch AMQP or queue names directly. MassTransit handles exchange binding, serialization, retry on publish failure, and consumer queue naming automatically.
+
+`BuildingBlocks.Messaging` provides a single registration method used by all services:
+
+```csharp
+// For services that only publish (Orders, Payments)
+services.AddMassTransitPublisher(configuration);
+
+// For services that also consume (Notifications.Worker)
+services.AddMassTransitWithConsumers(configuration, x =>
+{
+    x.AddConsumer<PaymentApprovedConsumer>();
+    x.AddConsumer<OrderConfirmedConsumer>();
+});
+```
+
+`cfg.ConfigureEndpoints(ctx)` in the consumer registration tells MassTransit to auto-create queues named after the consumer class. This is the convention-over-configuration approach — no hand-coded queue names.
+
+### Publishing inside the domain flow
+
+`PaymentService.ProcessAsync` publishes `PaymentApproved` immediately after the payment is saved as approved:
+
+```csharp
+payment.Approve(result.TransactionId!);
+await paymentRepository.UpdateAsync(payment, cancellationToken);
+
+await publishEndpoint.Publish(new PaymentApproved(...), cancellationToken);
+```
+
+`OrderService.ConfirmAsync` publishes `OrderConfirmed` after the order is saved:
+
+```csharp
+order.Confirm();
+await orderRepository.UpdateAsync(order, cancellationToken);
+
+await publishEndpoint.Publish(new OrderConfirmed(...), cancellationToken);
+```
+
+Note the ordering: persist first, then publish. This is correct but not fully safe — if the process crashes between the two lines, the event is lost. **Phase 5 will address this with the Outbox Pattern**, which makes event publishing atomic with the database transaction.
+
+### The Notifications Worker
+
+The worker has no HTTP endpoints. It is a `Microsoft.Extensions.Hosting` worker that connects to RabbitMQ on startup and receives messages via MassTransit consumers:
+
+```csharp
+public class PaymentApprovedConsumer(ILogger<PaymentApprovedConsumer> logger) : IConsumer<PaymentApproved>
+{
+    public Task Consume(ConsumeContext<PaymentApproved> context)
+    {
+        var evt = context.Message;
+        logger.LogInformation("[NOTIFICATION] Payment approved — OrderId: {OrderId} | Customer: {CustomerEmail} ...", ...);
+        return Task.CompletedTask;
+    }
+}
+```
+
+In production this would call SendGrid, Firebase Cloud Messaging, or a push notification service. The consumer is kept simple here to isolate the messaging concept from the notification delivery mechanism — each article covers one thing at a time.
+
+### Observing the events
+
+With the full stack running (`docker compose --profile full up --build`):
+
+1. Create an order: `POST /api/orders`
+2. Confirm the order: `POST /api/orders/{id}/confirm` → Notifications Worker logs `[NOTIFICATION] Order confirmed`
+3. Process a payment: `POST /api/payments` with `"providerBehavior": "success"` → Notifications Worker logs `[NOTIFICATION] Payment approved`
+4. Open the RabbitMQ management UI at `http://localhost:15672` (guest/guest) to see the exchanges and queues MassTransit created automatically.

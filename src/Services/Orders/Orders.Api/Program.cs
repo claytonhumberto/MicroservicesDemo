@@ -1,3 +1,4 @@
+using BuildingBlocks.Messaging;
 using Microsoft.EntityFrameworkCore;
 using Orders.Application.Services;
 using Orders.Infrastructure;
@@ -9,6 +10,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddOrdersInfrastructure(builder.Configuration);
+builder.Services.AddMassTransitPublisher(builder.Configuration);
 builder.Services.AddScoped<OrderService>();
 
 var app = builder.Build();
