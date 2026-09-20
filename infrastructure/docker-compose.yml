@@ -100,8 +100,15 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__OrdersDb: "Host=orders-db;Port=5432;Database=orders_db;Username=postgres;Password=postgres"
+      CatalogServiceUrl: "http://catalog-api:8080"
     ports:
       - "5102:8080"
+    depends_on:
+      orders-db:
+        condition: service_healthy
+      catalog-api:
+        condition: service_started
     profiles: ["full"]
 
   payments-api:

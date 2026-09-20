@@ -151,7 +151,7 @@ docker compose --profile full up --build
 ## Implementation Phases
 
 - **Phase 1** ✅ — Skeleton, Gateway (YARP), Catalog Service (full CRUD + PostgreSQL)
-- **Phase 2** — Orders Service + synchronous HTTP communication (Catalog → Orders)
+- **Phase 2** ✅ — Orders Service + synchronous HTTP communication (Catalog → Orders)
 - **Phase 3** — Payments Service + Fake Provider + resilience (Polly: retry, circuit breaker)
 - **Phase 4** — RabbitMQ events + Notifications Worker + Outbox Pattern
 - **Phase 5** — Observability (OpenTelemetry, correlation ID, structured logging)
@@ -257,3 +257,125 @@ docker compose --profile full up --build
 ### Orders, Payments and Notifications — stubs
 
 These services exist as buildable, deployable projects with a `/health` endpoint. They return a JSON response explaining which phase will implement them. This is intentional: the goal of Phase 1 is to prove the skeleton compiles, the Docker network works, and the gateway routes correctly — before writing any business logic in the other services.
+
+---
+
+## What Was Built — Phase 2
+
+### The core concept: synchronous service-to-service communication
+
+Phase 2 introduces the Orders Service and demonstrates the most common pattern for direct service communication: **synchronous HTTP calls**. When a client places an order, the Orders Service needs to know the product's name and current price before it can create the order. It gets this information by calling the Catalog Service over HTTP in real time.
+
+This is the simplest form of inter-service communication — and also the most fragile. If Catalog is down, Orders cannot create new orders. Phase 3 will introduce resilience patterns (retries, circuit breaker, timeouts) to make this less brittle.
+
+### The product snapshot problem
+
+A subtle but important design decision: what happens to an order when a product's price changes later?
+
+The Orders Service stores a **snapshot** of the product name and price at the time the order was placed. Even if the Catalog Service later updates the price, the existing order retains the original value. This is captured in `OrderItem`:
+
+```csharp
+public class OrderItem
+{
+    public string ProductName { get; private set; } // snapshot — captured at order time
+    public decimal UnitPrice { get; private set; }  // snapshot — not linked to Catalog
+    public decimal Subtotal => UnitPrice * Quantity; // computed, not stored in the DB
+    ...
+}
+```
+
+This is the correct approach for e-commerce systems. An order is a historical record, not a live view of the catalog.
+
+### Service boundary enforcement
+
+The Orders Service does **not** import any class from the Catalog Service. There is no shared `Product` class, no shared database, no direct table join. The only coupling is the HTTP call at order creation time. After that, the data is Orders' own.
+
+`ICatalogClient` (defined in the Application layer) and `CatalogHttpClient` (implemented in Infrastructure) follow the same Dependency Inversion principle used by `IProductRepository` in Phase 1:
+
+```csharp
+// Application layer — knows only the interface
+public interface ICatalogClient
+{
+    Task<ProductInfo?> GetProductAsync(Guid productId, CancellationToken cancellationToken = default);
+}
+
+// Infrastructure layer — knows HTTP
+public class CatalogHttpClient(HttpClient httpClient) : ICatalogClient
+{
+    public async Task<ProductInfo?> GetProductAsync(Guid productId, CancellationToken cancellationToken = default)
+    {
+        var response = await httpClient.GetAsync($"/api/products/{productId}", cancellationToken);
+        if (response.StatusCode == HttpStatusCode.NotFound) return null;
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadFromJsonAsync<ProductInfo>(cancellationToken: cancellationToken);
+    }
+}
+```
+
+### Resilience built in from day one
+
+The HTTP client is registered with `AddStandardResilienceHandler`, which adds retry, circuit breaker, and timeout policies using `Microsoft.Extensions.Http.Resilience`:
+
+```csharp
+services.AddHttpClient<ICatalogClient, CatalogHttpClient>(client =>
+{
+    client.BaseAddress = new Uri(catalogUrl);
+    client.Timeout = TimeSpan.FromSeconds(10);
+})
+.AddStandardResilienceHandler(options =>
+{
+    options.Retry.MaxRetryAttempts = 3;
+    options.Retry.Delay = TimeSpan.FromMilliseconds(500);
+    options.CircuitBreaker.SamplingDuration = TimeSpan.FromSeconds(30);
+});
+```
+
+Phase 3 will tune these policies and introduce the Fake Payment Provider's configurable failures to show these patterns in action.
+
+### Order lifecycle
+
+Orders have four statuses and the transitions are enforced in the domain:
+
+```
+Pending → Confirmed → Paid
+Pending → Cancelled
+Confirmed → Cancelled
+```
+
+Each transition is a method on the `Order` aggregate root (`Confirm()`, `Cancel()`, `MarkAsPaid()`). If you try to confirm an order that has no items, or cancel an order that is already paid, the domain throws `InvalidOperationException` — the controller maps this to HTTP 422.
+
+### Endpoints
+
+| Method | Route | Description |
+|---|---|---|
+| `GET` | `/api/orders` | Paginated order list |
+| `GET` | `/api/orders/{id}` | Order by ID (includes items) |
+| `POST` | `/api/orders` | Create an order (calls Catalog for each product) |
+| `POST` | `/api/orders/{id}/confirm` | Transition Pending → Confirmed |
+| `POST` | `/api/orders/{id}/cancel` | Transition to Cancelled |
+| `GET` | `/health` | Health check |
+
+### Running Phase 2 locally
+
+Start the infrastructure and both services:
+
+```bash
+cd infrastructure
+docker compose --profile infra up -d
+```
+
+Then run each service in a separate terminal:
+
+```bash
+dotnet run --project src/Services/Catalog/Catalog.Api
+dotnet run --project src/Services/Orders/Orders.Api
+```
+
+Or start everything with Docker:
+
+```bash
+cd infrastructure
+docker compose --profile full up --build
+```
+
+Orders API docs (Scalar): `http://localhost:5102/scalar/v1`
