@@ -1,0 +1,162 @@
+services:
+
+  # ─── Infrastructure ───────────────────────────────────────────────────────────
+
+  catalog-db:
+    image: postgres:16-alpine
+    container_name: catalog-db
+    environment:
+      POSTGRES_DB: catalog_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5433:5432"
+    volumes:
+      - catalog-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d catalog_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["infra", "full"]
+
+  orders-db:
+    image: postgres:16-alpine
+    container_name: orders-db
+    environment:
+      POSTGRES_DB: orders_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5434:5432"
+    volumes:
+      - orders-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d orders_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["infra", "full"]
+
+  payments-db:
+    image: postgres:16-alpine
+    container_name: payments-db
+    environment:
+      POSTGRES_DB: payments_db
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5435:5432"
+    volumes:
+      - payments-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d payments_db"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    profiles: ["infra", "full"]
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    volumes:
+      - rabbitmq-data:/var/lib/rabbitmq
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    profiles: ["infra", "full"]
+
+  # ─── Services ─────────────────────────────────────────────────────────────────
+
+  catalog-api:
+    build:
+      context: ../src
+      dockerfile: Services/Catalog/Catalog.Api/Dockerfile
+    container_name: catalog-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__CatalogDb: "Host=catalog-db;Port=5432;Database=catalog_db;Username=postgres;Password=postgres"
+    ports:
+      - "5101:8080"
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+    profiles: ["catalog", "full"]
+
+  orders-api:
+    build:
+      context: ../src
+      dockerfile: Services/Orders/Orders.Api/Dockerfile
+    container_name: orders-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "5102:8080"
+    profiles: ["full"]
+
+  payments-api:
+    build:
+      context: ../src
+      dockerfile: Services/Payments/Payments.Api/Dockerfile
+    container_name: payments-api
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "5103:8080"
+    profiles: ["full"]
+
+  fake-payment-provider:
+    build:
+      context: ../src
+      dockerfile: Services/Payments/Payments.FakeProvider/Dockerfile
+    container_name: fake-payment-provider
+    environment:
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "5104:8080"
+    profiles: ["full"]
+
+  notifications-worker:
+    build:
+      context: ../src
+      dockerfile: Services/Notifications/Notifications.Worker/Dockerfile
+    container_name: notifications-worker
+    environment:
+      DOTNET_ENVIRONMENT: Development
+    depends_on:
+      rabbitmq:
+        condition: service_healthy
+    profiles: ["full"]
+
+  gateway:
+    build:
+      context: ../src
+      dockerfile: Gateway/Gateway.Api/Dockerfile
+    container_name: gateway
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+    ports:
+      - "5100:8080"
+    depends_on:
+      - catalog-api
+      - orders-api
+      - payments-api
+    profiles: ["full"]
+
+volumes:
+  catalog-db-data:
+  orders-db-data:
+  payments-db-data:
+  rabbitmq-data:
