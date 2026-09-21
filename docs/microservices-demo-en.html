@@ -1,0 +1,1109 @@
+<title>MicroservicesDemo Guide</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap">
+
+<style>
+/* ── Tokens ─────────────────────────────────────────────────────────────── */
+:root {
+  --bg:        #F7F4EF;
+  --surface:   #FFFFFF;
+  --border:    #E2DDD6;
+  --text:      #1A1714;
+  --muted:     #6B6560;
+  --accent:    #0284C7;
+  --accent-lt: #E0F2FE;
+  --amber:     #D97706;
+  --amber-lt:  #FEF3C7;
+  --green:     #059669;
+  --green-lt:  #D1FAE5;
+  --red:       #DC2626;
+  --red-lt:    #FEE2E2;
+  --code-bg:   #1E293B;
+  --code-text: #E2E8F0;
+  --sidebar-w: 260px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg:        #0D1B2A;
+    --surface:   #1A2B3C;
+    --border:    #2A3D52;
+    --text:      #EDF2F7;
+    --muted:     #8FA3B8;
+    --accent:    #38BDF8;
+    --accent-lt: #0C2A3D;
+    --amber:     #FBB040;
+    --amber-lt:  #2D1F06;
+    --green:     #34D399;
+    --green-lt:  #052E1C;
+    --red:       #F87171;
+    --red-lt:    #2D0A0A;
+    --code-bg:   #0D1117;
+    --code-text: #CDD9E5;
+  }
+}
+:root[data-theme="dark"] {
+  --bg:        #0D1B2A;
+  --surface:   #1A2B3C;
+  --border:    #2A3D52;
+  --text:      #EDF2F7;
+  --muted:     #8FA3B8;
+  --accent:    #38BDF8;
+  --accent-lt: #0C2A3D;
+  --amber:     #FBB040;
+  --amber-lt:  #2D1F06;
+  --green:     #34D399;
+  --green-lt:  #052E1C;
+  --red:       #F87171;
+  --red-lt:    #2D0A0A;
+  --code-bg:   #0D1117;
+  --code-text: #CDD9E5;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Source Sans 3', system-ui, sans-serif;
+  font-size: 1rem;
+  line-height: 1.7;
+  color: var(--text);
+  background: var(--bg);
+}
+
+.page-wrap {
+  display: flex;
+  align-items: flex-start;
+  max-width: 1100px;
+  margin: 0 auto;
+  padding-inline: 16px;
+  gap: 40px;
+}
+
+.sidebar {
+  width: var(--sidebar-w);
+  flex-shrink: 0;
+  position: sticky;
+  top: 24px;
+  max-height: calc(100vh - 48px);
+  overflow-y: auto;
+  padding-block: 32px 64px;
+  scrollbar-width: thin;
+}
+.sidebar-label {
+  font-family: 'Sora', sans-serif;
+  font-size: .7rem;
+  font-weight: 700;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin-bottom: 12px;
+}
+.toc { list-style: none; }
+.toc li { margin: 2px 0; }
+.toc a {
+  display: block;
+  font-size: .875rem;
+  color: var(--muted);
+  text-decoration: none;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: background .15s, color .15s;
+  border-left: 2px solid transparent;
+}
+.toc a:hover { color: var(--text); background: var(--border); }
+.toc a.phase { color: var(--text); font-weight: 600; margin-top: 8px; }
+.toc a.sub { padding-left: 22px; font-size: .82rem; }
+.toc a.active { color: var(--accent); border-left-color: var(--accent); background: var(--accent-lt); }
+
+.main {
+  flex: 1;
+  min-width: 0;
+  padding-block: 40px 80px;
+}
+
+.hero {
+  background: linear-gradient(135deg, #0F2744 0%, #0D3D60 60%, #0A5682 100%);
+  border-radius: 16px;
+  padding: 48px 40px;
+  margin-bottom: 48px;
+  color: #fff;
+  position: relative;
+  overflow: hidden;
+}
+.hero::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: url("data:image/svg+xml,%3Csvg width='60' height='60' viewBox='0 0 60 60' xmlns='http://www.w3.org/2000/svg'%3E%3Cg fill='none' fill-rule='evenodd'%3E%3Cg fill='%23ffffff' fill-opacity='0.03'%3E%3Cpath d='M36 34v-4h-2v4h-4v2h4v4h2v-4h4v-2h-4zm0-30V0h-2v4h-4v2h4v4h2V6h4V4h-4zM6 34v-4H4v4H0v2h4v4h2v-4h4v-2H6zM6 4V0H4v4H0v2h4v4h2V6h4V4H6z'/%3E%3C/g%3E%3C/g%3E%3C/svg%3E");
+}
+.hero-badge {
+  display: inline-block;
+  background: rgba(255,255,255,.15);
+  color: #93C5FD;
+  font-family: 'Sora', sans-serif;
+  font-size: .75rem;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  padding: 4px 12px;
+  border-radius: 20px;
+  margin-bottom: 16px;
+  border: 1px solid rgba(255,255,255,.2);
+}
+.hero h1 {
+  font-family: 'Sora', sans-serif;
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  text-wrap: balance;
+  margin-bottom: 12px;
+  color: #fff;
+}
+.hero p { font-size: 1.1rem; color: rgba(255,255,255,.75); max-width: 540px; margin-bottom: 28px; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: 20px; }
+.hero-meta-item { font-size: .85rem; color: rgba(255,255,255,.6); }
+.hero-meta-item strong { color: rgba(255,255,255,.9); display: block; font-size: .95rem; }
+
+h1, h2, h3, h4 { font-family: 'Sora', sans-serif; text-wrap: balance; color: var(--text); }
+h2 {
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin-top: 56px;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 2px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+h3 { font-size: 1.15rem; font-weight: 600; margin-top: 32px; margin-bottom: 12px; }
+h4 { font-size: 1rem; font-weight: 600; margin-top: 24px; margin-bottom: 8px; color: var(--muted); letter-spacing: .02em; }
+p { margin-bottom: 16px; }
+p:last-child { margin-bottom: 0; }
+a { color: var(--accent); }
+strong { font-weight: 600; }
+
+.phase-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px; height: 32px;
+  border-radius: 8px;
+  font-family: 'Sora', sans-serif;
+  font-size: .85rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.ph1 { background: #EDE9FE; color: #6D28D9; }
+.ph2 { background: #DBEAFE; color: #1D4ED8; }
+.ph3 { background: #D1FAE5; color: #065F46; }
+.ph4 { background: #FEF3C7; color: #92400E; }
+.ph5 { background: #FCE7F3; color: #9D174D; }
+.ph6 { background: #E0F2FE; color: #0369A1; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .ph1 { background: #2E1065; color: #C4B5FD; }
+  :root:not([data-theme="light"]) .ph2 { background: #1E3A5F; color: #93C5FD; }
+  :root:not([data-theme="light"]) .ph3 { background: #064E3B; color: #6EE7B7; }
+  :root:not([data-theme="light"]) .ph4 { background: #451A03; color: #FDE68A; }
+  :root:not([data-theme="light"]) .ph5 { background: #500724; color: #FBCFE8; }
+  :root:not([data-theme="light"]) .ph6 { background: #0C2E48; color: #7DD3FC; }
+}
+:root[data-theme="dark"] .ph1 { background: #2E1065; color: #C4B5FD; }
+:root[data-theme="dark"] .ph2 { background: #1E3A5F; color: #93C5FD; }
+:root[data-theme="dark"] .ph3 { background: #064E3B; color: #6EE7B7; }
+:root[data-theme="dark"] .ph4 { background: #451A03; color: #FDE68A; }
+:root[data-theme="dark"] .ph5 { background: #500724; color: #FBCFE8; }
+:root[data-theme="dark"] .ph6 { background: #0C2E48; color: #7DD3FC; }
+
+code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .82em;
+  background: var(--border);
+  color: var(--text);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+pre {
+  background: var(--code-bg);
+  color: var(--code-text);
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .83rem;
+  line-height: 1.6;
+  padding: 20px 24px;
+  border-radius: 10px;
+  overflow-x: auto;
+  margin: 20px 0;
+}
+pre code { background: none; color: inherit; padding: 0; font-size: inherit; }
+.pre-label {
+  background: var(--code-bg);
+  color: #64748B;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem;
+  padding: 8px 24px 0;
+  border-radius: 10px 10px 0 0;
+  margin-bottom: -10px;
+  margin-top: 20px;
+  letter-spacing: .05em;
+}
+.pre-label + pre { border-radius: 0 0 10px 10px; margin-top: 0; }
+
+.kw  { color: #89DDFF; }
+.str { color: #C3E88D; }
+.cm  { color: #546E7A; font-style: italic; }
+.ty  { color: #FFCB6B; }
+.num { color: #F78C6C; }
+.fn  { color: #82AAFF; }
+
+.callout {
+  border-radius: 10px;
+  padding: 16px 20px;
+  margin: 20px 0;
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+}
+.callout-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: 1px; }
+.callout-body { flex: 1; }
+.callout-body p { margin-bottom: 8px; }
+.callout-body p:last-child { margin-bottom: 0; }
+.callout-body strong { display: block; margin-bottom: 4px; }
+.callout.info  { background: var(--accent-lt); border-left: 3px solid var(--accent); }
+.callout.tip   { background: var(--green-lt);  border-left: 3px solid var(--green); }
+.callout.warn  { background: var(--amber-lt);  border-left: 3px solid var(--amber); }
+.callout.note  { background: var(--surface); border: 1px solid var(--border); border-left: 3px solid var(--border); }
+
+.diagram {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 24px;
+  overflow-x: auto;
+  margin: 20px 0;
+}
+.diagram pre { background: none; color: var(--text); font-size: .8rem; padding: 0; margin: 0; border-radius: 0; }
+
+.table-wrap { overflow-x: auto; margin: 20px 0; }
+table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+th {
+  background: var(--surface);
+  font-family: 'Sora', sans-serif;
+  font-size: .78rem;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 10px 14px;
+  text-align: left;
+  border-bottom: 2px solid var(--border);
+}
+td { padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: top; }
+tr:last-child td { border-bottom: none; }
+tr:hover td { background: var(--accent-lt); }
+
+.endpoint { display: flex; align-items: flex-start; gap: 10px; margin: 8px 0; font-size: .9rem; }
+.method {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: .72rem;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: 4px;
+  flex-shrink: 0;
+  margin-top: 1px;
+  letter-spacing: .04em;
+}
+.get  { background: #D1FAE5; color: #065F46; }
+.post { background: #DBEAFE; color: #1D4ED8; }
+.put  { background: #FEF3C7; color: #92400E; }
+.del  { background: #FEE2E2; color: #991B1B; }
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .get  { background: #064E3B; color: #6EE7B7; }
+  :root:not([data-theme="light"]) .post { background: #1E3A5F; color: #93C5FD; }
+  :root:not([data-theme="light"]) .put  { background: #451A03; color: #FDE68A; }
+  :root:not([data-theme="light"]) .del  { background: #450A0A; color: #FCA5A5; }
+}
+:root[data-theme="dark"] .get  { background: #064E3B; color: #6EE7B7; }
+:root[data-theme="dark"] .post { background: #1E3A5F; color: #93C5FD; }
+:root[data-theme="dark"] .put  { background: #451A03; color: #FDE68A; }
+:root[data-theme="dark"] .del  { background: #450A0A; color: #FCA5A5; }
+
+ul, ol { padding-left: 24px; margin-bottom: 16px; }
+li { margin-bottom: 4px; }
+hr { border: none; border-top: 1px solid var(--border); margin: 40px 0; }
+
+@media print {
+  .sidebar { display: none; }
+  .page-wrap { display: block; }
+  .main { padding-block: 0; }
+  .hero { background: #0F2744 !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  pre { background: #1E293B !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  h2 { page-break-before: always; }
+  h2:first-of-type { page-break-before: avoid; }
+}
+
+@media (max-width: 740px) {
+  .sidebar { display: none; }
+  .page-wrap { padding-inline: 16px; }
+  .hero { padding: 32px 24px; }
+  .hero h1 { font-size: 1.6rem; }
+  h2 { font-size: 1.3rem; }
+}
+
+[id] { scroll-margin-top: 24px; }
+</style>
+
+<div class="page-wrap">
+
+  <!-- SIDEBAR -->
+  <nav class="sidebar" aria-label="Table of Contents">
+    <div class="sidebar-label">Contents</div>
+    <ul class="toc">
+      <li><a href="#intro">What are microservices?</a></li>
+      <li><a href="#architecture">Overall architecture</a></li>
+      <li><a href="#prereqs">Prerequisites</a></li>
+      <li><a href="#running">Running the project</a></li>
+      <li><a href="#phase1" class="phase">Phase 1 — Catalog</a></li>
+      <li><a href="#phase1-concepts" class="sub">Concepts</a></li>
+      <li><a href="#phase1-endpoints" class="sub">Endpoints</a></li>
+      <li><a href="#phase2" class="phase">Phase 2 — Orders</a></li>
+      <li><a href="#phase2-snapshot" class="sub">Product snapshot</a></li>
+      <li><a href="#phase2-resilience" class="sub">HTTP resilience</a></li>
+      <li><a href="#phase3" class="phase">Phase 3 — Payments</a></li>
+      <li><a href="#phase3-fake" class="sub">Fake provider</a></li>
+      <li><a href="#phase3-cb" class="sub">Circuit Breaker</a></li>
+      <li><a href="#phase4" class="phase">Phase 4 — Events</a></li>
+      <li><a href="#phase4-rabbitmq" class="sub">RabbitMQ</a></li>
+      <li><a href="#phase4-masstransit" class="sub">MassTransit</a></li>
+      <li><a href="#phase5" class="phase">Phase 5 — Observability</a></li>
+      <li><a href="#phase5-correlation" class="sub">Correlation ID</a></li>
+      <li><a href="#phase5-otel" class="sub">OpenTelemetry</a></li>
+      <li><a href="#phase6" class="phase">Phase 6 — JWT Auth</a></li>
+      <li><a href="#phase6-flow" class="sub">Token flow</a></li>
+      <li><a href="#glossary">Glossary</a></li>
+      <li><a href="#next">What's next</a></li>
+    </ul>
+  </nav>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- HERO -->
+    <div class="hero">
+      <div class="hero-badge">.NET 10 · Docker · PostgreSQL · RabbitMQ</div>
+      <h1>MicroservicesDemo<br>— A Complete Guide</h1>
+      <p>A beginner-friendly walkthrough of microservices architecture with .NET 10. Each phase introduces one new concept on top of the previous one.</p>
+      <div class="hero-meta">
+        <div class="hero-meta-item"><strong>Author</strong>Clayton Humberto</div>
+        <div class="hero-meta-item"><strong>Stack</strong>.NET 10 / ASP.NET Core</div>
+        <div class="hero-meta-item"><strong>Phases</strong>6 (Catalog → JWT)</div>
+        <div class="hero-meta-item"><strong>Repository</strong>github.com/claytonhumberto/MicroservicesDemo</div>
+      </div>
+    </div>
+
+    <!-- ── INTRO ──────────────────────────────────────────────────────── -->
+    <h2 id="intro">What are microservices?</h2>
+
+    <p>Picture a restaurant with specialized staff: the chef handles cooking, the server handles table service, and the cashier handles payments. Each person does one thing — and does it well. If the cashier calls in sick, the restaurant can still serve food; the chef doesn't stop.</p>
+
+    <p><strong>Microservices work the same way in software.</strong> Instead of one giant program that does everything (called a <em>monolith</em>), you break the application into several smaller programs, each with a clear responsibility and its own database.</p>
+
+    <div class="callout info">
+      <div class="callout-icon">🏗️</div>
+      <div class="callout-body">
+        <strong>Monolith vs. Microservices</strong>
+        <p>A monolith is like a Swiss Army knife: it does everything, but improving one part means touching all the others. Microservices are like a toolbox: each tool is specialized and can be upgraded or replaced on its own.</p>
+      </div>
+    </div>
+
+    <h3>Real-world benefits</h3>
+    <ul>
+      <li><strong>Independent scaling:</strong> if the Payments service takes more load, scale only it — no need to scale the entire catalog</li>
+      <li><strong>Separate deployments:</strong> one team ships a new version of the Orders service without touching anything else</li>
+      <li><strong>Different tech stacks:</strong> one service can use PostgreSQL, another MongoDB — each picks the right tool for its problem</li>
+      <li><strong>Failure isolation:</strong> if the Notifications worker crashes, users can still place orders</li>
+    </ul>
+
+    <h3>Challenges (honesty first)</h3>
+    <ul>
+      <li>Service-to-service communication adds complexity and latency</li>
+      <li>Debugging an issue that spans three services is harder than debugging a monolith</li>
+      <li>You need to manage multiple databases, configurations, and deployments</li>
+      <li>For small applications, microservices are often overkill</li>
+    </ul>
+
+    <div class="callout tip">
+      <div class="callout-icon">💡</div>
+      <div class="callout-body">
+        <strong>When should you use microservices?</strong>
+        <p>Microservices shine in large systems with multiple teams working in parallel, where different parts of the system have different load profiles. For a solo small project, a well-organized monolith is often the right call.</p>
+      </div>
+    </div>
+
+    <!-- ── ARCHITECTURE ───────────────────────────────────────────────── -->
+    <h2 id="architecture">Overall architecture</h2>
+
+    <p>The project has four main services and one infrastructure component (the Gateway). Here's how they relate:</p>
+
+    <div class="diagram">
+      <pre>
+                    ┌───────────────────────────────┐
+                    │            CLIENT              │
+                    │  (browser, app, curl, .http)   │
+                    └──────────────┬────────────────┘
+                                   │ :5100
+                                   ▼
+                    ┌───────────────────────────────┐
+                    │          API GATEWAY           │
+                    │      YARP Reverse Proxy        │
+                    │   POST /auth/token  (JWT)      │
+                    └──────┬────────┬──────┬─────────┘
+                           │        │      │
+               /products   │        │      │ /payments
+                           ▼        ▼      ▼
+              ┌────────────┐  ┌─────────┐  ┌─────────────┐
+              │  CATALOG   │  │ ORDERS  │  │  PAYMENTS   │
+              │  :5101     │  │  :5102  │  │    :5103    │
+              │ PostgreSQL │  │Postgres │  │  Postgres   │
+              │  :5433     │  │  :5434  │  │    :5435    │
+              └────────────┘  └────┬────┘  └──────┬──────┘
+                    ▲              │               │
+                    │ HTTP (sync)  │               │
+                    └─────────────┘               │
+                                                  ▼
+                              ┌──────────────────────────────┐
+                              │           RabbitMQ           │
+                              │  Queue: OrderConfirmed       │
+                              │  Queue: PaymentApproved      │
+                              └──────────────┬───────────────┘
+                                             │
+                                             ▼
+                              ┌──────────────────────────────┐
+                              │   NOTIFICATIONS WORKER       │
+                              │  Consumes events and logs    │
+                              └──────────────────────────────┘</pre>
+    </div>
+
+    <h3>Components and responsibilities</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Component</th><th>Port</th><th>Responsibility</th><th>Database</th></tr></thead>
+        <tbody>
+          <tr><td><strong>API Gateway</strong></td><td>5100</td><td>Single entry point, routing, JWT issuance</td><td>—</td></tr>
+          <tr><td><strong>Catalog</strong></td><td>5101</td><td>Product CRUD, categories, stock management</td><td>PostgreSQL :5433</td></tr>
+          <tr><td><strong>Orders</strong></td><td>5102</td><td>Order creation and lifecycle, queries Catalog</td><td>PostgreSQL :5434</td></tr>
+          <tr><td><strong>Payments</strong></td><td>5103</td><td>Process charges via provider (fake in this lab)</td><td>PostgreSQL :5435</td></tr>
+          <tr><td><strong>Notifications Worker</strong></td><td>—</td><td>Consumes RabbitMQ events and sends notifications</td><td>—</td></tr>
+          <tr><td><strong>Fake Provider</strong></td><td>5104</td><td>Simulates an external payment API</td><td>—</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <h3>Code organization (per service)</h3>
+
+    <p>Each service follows the same layered structure inspired by <strong>Domain-Driven Design (DDD)</strong>:</p>
+
+    <div class="diagram">
+      <pre>
+Catalog/
+├── Catalog.Domain/          ← Pure business rules (no external dependencies)
+│   ├── Entities/            ← Product (the core aggregate)
+│   └── Repositories/        ← Interface (contract) for the repository
+│
+├── Catalog.Application/     ← Use cases, DTOs, orchestration
+│   ├── DTOs/                ← What goes in and out of the API
+│   └── Services/            ← ProductService (application logic)
+│
+├── Catalog.Infrastructure/  ← Technical details (database, external HTTP)
+│   ├── Persistence/         ← DbContext + EF Core Migration
+│   └── Repositories/        ← Concrete repository implementation
+│
+└── Catalog.Api/             ← HTTP entry point
+    ├── Controllers/         ← Receives requests, delegates to Service
+    └── Program.cs           ← Application bootstrap</pre>
+    </div>
+
+    <div class="callout note">
+      <div class="callout-icon">📐</div>
+      <div class="callout-body">
+        <strong>Why this separation?</strong>
+        <p>The <code>Domain</code> layer has no knowledge of databases, HTTP, or any technology. That means you can swap PostgreSQL for MySQL tomorrow without touching any business rules. This is the <em>Dependency Inversion Principle</em> (DIP) from SOLID in action.</p>
+      </div>
+    </div>
+
+    <!-- ── PREREQUISITES ─────────────────────────────────────────────── -->
+    <h2 id="prereqs">Prerequisites</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Tool</th><th>Minimum version</th><th>Purpose</th></tr></thead>
+        <tbody>
+          <tr><td><strong>.NET SDK</strong></td><td>10.0</td><td>Build and run the C# services</td></tr>
+          <tr><td><strong>Docker Desktop</strong></td><td>4.x</td><td>Spin up PostgreSQL, RabbitMQ, and the services as containers</td></tr>
+          <tr><td><strong>Git</strong></td><td>2.x</td><td>Clone the repository</td></tr>
+          <tr><td><strong>VS Code</strong> (optional)</td><td>—</td><td>Run the <code>.http</code> files with the REST Client extension</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── RUNNING ────────────────────────────────────────────────────── -->
+    <h2 id="running">Running the project</h2>
+
+    <h3>1. Clone the repository</h3>
+    <div class="pre-label">TERMINAL</div>
+    <pre><code>git clone https://github.com/claytonhumberto/MicroservicesDemo.git
+cd MicroservicesDemo</code></pre>
+
+    <h3>2. Start infrastructure only (databases + RabbitMQ)</h3>
+    <p>Use the <code>infra</code> profile to start only the database and RabbitMQ containers, without the application services:</p>
+    <div class="pre-label">TERMINAL</div>
+    <pre><code>cd infrastructure
+docker compose --profile infra up -d</code></pre>
+
+    <h3>3. Start the full stack</h3>
+    <p>The <code>full</code> profile starts all containers, including the application services:</p>
+    <div class="pre-label">TERMINAL</div>
+    <pre><code>docker compose --profile full up -d</code></pre>
+
+    <h3>4. Verify everything is running</h3>
+    <div class="pre-label">TERMINAL</div>
+    <pre><code># Gateway health check
+curl http://localhost:5100/health
+
+# Expected response:
+# {"service":"Gateway","status":"Healthy","timestamp":"2026-..."}</code></pre>
+
+    <div class="callout tip">
+      <div class="callout-icon">🔥</div>
+      <div class="callout-body">
+        <strong>Tip: Scalar UI</strong>
+        <p>Each service ships with an interactive API documentation UI accessible from your browser. Through the Gateway you can paste a JWT token and test everything without curl:</p>
+        <ul>
+          <li>Catalog: <code>http://localhost:5101/scalar</code></li>
+          <li>Orders: <code>http://localhost:5102/scalar</code></li>
+          <li>Payments: <code>http://localhost:5103/scalar</code></li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- PHASE 1 -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <h2 id="phase1"><span class="phase-badge ph1">1</span> Phase 1 — Product Catalog</h2>
+
+    <p>The Catalog service is the starting point. It manages products: creation, updates, deletion, and paginated queries with category filtering. The patterns introduced here are reused by all other services.</p>
+
+    <h3 id="phase1-concepts">Concepts introduced</h3>
+
+    <div class="callout info">
+      <div class="callout-icon">📦</div>
+      <div class="callout-body">
+        <strong>Database per Service</strong>
+        <p>Each microservice owns its own database. The Catalog uses PostgreSQL on port <strong>5433</strong>. No other service accesses that database directly — if you want a product, you call the Catalog API. This guarantees autonomy and independence between services.</p>
+      </div>
+    </div>
+
+    <h4>Entity Framework Core + Migrations</h4>
+    <p>EF Core is the ORM (object-relational mapper) used to interact with the database. Instead of writing SQL by hand, you define C# classes (called <em>entities</em>) and EF Core generates the SQL automatically. <strong>Migrations</strong> are version-controlled scripts that evolve the database schema as the code changes.</p>
+
+    <div class="pre-label">Catalog.Domain/Entities/Product.cs</div>
+    <pre><code><span class="kw">public class</span> <span class="ty">Product</span>
+{
+    <span class="cm">// EF Core requires a parameterless constructor (can be private)</span>
+    <span class="kw">private</span> <span class="ty">Product</span>() { }
+
+    <span class="cm">// Static factory methods — full control over object creation</span>
+    <span class="kw">public static</span> <span class="ty">Product</span> <span class="fn">Create</span>(<span class="ty">string</span> name, <span class="ty">decimal</span> price, <span class="ty">int</span> stock)
+    {
+        <span class="kw">return new</span> <span class="ty">Product</span>
+        {
+            Id            = <span class="ty">Guid</span>.NewGuid(),
+            Name          = name,
+            Price         = price,
+            StockQuantity = stock,
+            CreatedAt     = <span class="ty">DateTime</span>.UtcNow,
+            IsActive      = <span class="kw">true</span>
+        };
+    }
+
+    <span class="kw">public</span> <span class="ty">Guid</span>    Id            { <span class="kw">get</span>; <span class="kw">private set</span>; }
+    <span class="kw">public</span> <span class="ty">string</span>  Name          { <span class="kw">get</span>; <span class="kw">private set</span>; } = <span class="str">""</span>;
+    <span class="kw">public</span> <span class="ty">decimal</span> Price         { <span class="kw">get</span>; <span class="kw">private set</span>; }
+    <span class="kw">public</span> <span class="ty">int</span>     StockQuantity { <span class="kw">get</span>; <span class="kw">private set</span>; }
+    <span class="kw">public</span> <span class="ty">bool</span>    IsActive      { <span class="kw">get</span>; <span class="kw">private set</span>; }
+}</code></pre>
+
+    <div class="callout note">
+      <div class="callout-icon">🔒</div>
+      <div class="callout-body">
+        <strong>Why <code>private set</code>?</strong>
+        <p>With <code>private set</code>, an object's internal state can only be changed through its own methods. This prevents external code from putting the entity into an invalid state — for example, a negative price.</p>
+      </div>
+    </div>
+
+    <h3 id="phase1-endpoints">API endpoints</h3>
+
+    <div class="endpoint"><span class="method get">GET</span> <code>/api/products?page=1&amp;pageSize=20&amp;category=Electronics</code> — paginated product list</div>
+    <div class="endpoint"><span class="method get">GET</span> <code>/api/products/{id}</code> — get product by ID</div>
+    <div class="endpoint"><span class="method get">GET</span> <code>/api/products/categories</code> — list available categories</div>
+    <div class="endpoint"><span class="method post">POST</span> <code>/api/products</code> — create product <em>(JWT required)</em></div>
+    <div class="endpoint"><span class="method put">PUT</span> <code>/api/products/{id}</code> — update product <em>(JWT required)</em></div>
+    <div class="endpoint"><span class="method del">DELETE</span> <code>/api/products/{id}</code> — delete product <em>(JWT required)</em></div>
+
+    <div class="pre-label">Example: create a product</div>
+    <pre><code>POST /api/products
+Authorization: Bearer &lt;your_token_here&gt;
+Content-Type: application/json
+
+{
+  "name": "Gaming Laptop",
+  "description": "RTX 4070, 32 GB RAM, 1 TB SSD",
+  "price": 1499.99,
+  "stockQuantity": 10,
+  "category": "Computers",
+  "sku": "LAP-GAM-001"
+}</code></pre>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- PHASE 2 -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <h2 id="phase2"><span class="phase-badge ph2">2</span> Phase 2 — Orders Service</h2>
+
+    <p>The Orders service demonstrates how microservices communicate <strong>synchronously</strong> — one calls another and waits for a response. When an order is created, the Orders service queries the Catalog to validate that products exist and have enough stock.</p>
+
+    <h3 id="phase2-snapshot">Pattern: product snapshot</h3>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>Problem: what if the price changes later?</strong>
+        <p>If an order only stored a product ID, and the price changed in the Catalog, the old order's total would be wrong. This is a real issue in e-commerce systems.</p>
+      </div>
+    </div>
+
+    <p>The solution is to capture a <strong>snapshot</strong> of the product at order creation time: the name and price are copied into the order item and become immutable. Even if the Catalog changes tomorrow, the order history stays correct.</p>
+
+    <div class="pre-label">Orders.Domain/Entities/OrderItem.cs</div>
+    <pre><code><span class="kw">public class</span> <span class="ty">OrderItem</span>
+{
+    <span class="cm">// Snapshot captured at order creation time</span>
+    <span class="kw">public</span> <span class="ty">string</span>  ProductName { <span class="kw">get</span>; <span class="kw">private set</span>; } = <span class="str">""</span>;
+    <span class="kw">public</span> <span class="ty">decimal</span> UnitPrice   { <span class="kw">get</span>; <span class="kw">private set</span>; }
+    <span class="kw">public</span> <span class="ty">int</span>     Quantity    { <span class="kw">get</span>; <span class="kw">private set</span>; }
+
+    <span class="cm">// Computed in memory — EF Core ignores this property in the database</span>
+    <span class="kw">public</span> <span class="ty">decimal</span> Subtotal => UnitPrice * Quantity;
+}</code></pre>
+
+    <h3 id="phase2-resilience">HTTP resilience</h3>
+
+    <p>The Orders service calls the Catalog over HTTP. What happens if the Catalog is slow or unavailable? The <code>Microsoft.Extensions.Http.Resilience</code> package adds automatic behaviors:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Mechanism</th><th>What it does</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Total timeout</strong></td><td>Cancels the request if it takes more than 30 s overall</td></tr>
+          <tr><td><strong>Retry with jitter</strong></td><td>Retries up to 3 times with a random delay (prevents synchronized thundering herds)</td></tr>
+          <tr><td><strong>Circuit Breaker</strong></td><td>If too many requests fail, stops calling the troubled service for a cooling-off period</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pre-label">Orders.Infrastructure/DependencyInjection.cs</div>
+    <pre><code>services
+    .AddHttpClient&lt;<span class="ty">ICatalogClient</span>, <span class="ty">CatalogHttpClient</span>&gt;(client =>
+    {
+        client.BaseAddress = <span class="kw">new</span> <span class="ty">Uri</span>(configuration[<span class="str">"CatalogServiceUrl"</span>]!);
+    })
+    .AddStandardResilienceHandler();  <span class="cm">// retry + circuit breaker + timeout</span></code></pre>
+
+    <h3>Order lifecycle</h3>
+    <div class="diagram">
+      <pre>
+ Pending ──► Confirmed ──► Paid
+    │
+    └──► Cancelled</pre>
+    </div>
+
+    <div class="endpoint"><span class="method get">GET</span> <code>/api/orders</code> — paginated order list</div>
+    <div class="endpoint"><span class="method get">GET</span> <code>/api/orders/{id}</code> — get order by ID</div>
+    <div class="endpoint"><span class="method post">POST</span> <code>/api/orders</code> — create order <em>(JWT required)</em></div>
+    <div class="endpoint"><span class="method post">POST</span> <code>/api/orders/{id}/confirm</code> — confirm order <em>(JWT required)</em></div>
+    <div class="endpoint"><span class="method post">POST</span> <code>/api/orders/{id}/cancel</code> — cancel order <em>(JWT required)</em></div>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- PHASE 3 -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <h2 id="phase3"><span class="phase-badge ph3">3</span> Phase 3 — Payments Service</h2>
+
+    <p>The Payments service processes charges. In production it would call a real API like Stripe or Braintree. In this lab we use a <strong>Fake Provider</strong> that simulates different scenarios so you can explore resilience patterns without real money.</p>
+
+    <h3 id="phase3-fake">Fake payment provider</h3>
+
+    <p>The <code>FakePaymentProviderClient</code> reads a <code>providerBehavior</code> field from the request body that controls what happens:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Value</th><th>Behavior</th><th>Use case</th></tr></thead>
+        <tbody>
+          <tr><td><code>success</code></td><td>Approves the payment</td><td>Happy path</td></tr>
+          <tr><td><code>fail</code></td><td>Declines the payment</td><td>Testing failure logic</td></tr>
+          <tr><td><code>timeout</code></td><td>Never responds (simulates a stall)</td><td>Testing circuit breaker &amp; retry</td></tr>
+          <tr><td><code>slow</code></td><td>Responds after 3 seconds</td><td>Testing attempt timeout</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pre-label">Example: simulate a timeout</div>
+    <pre><code>POST /api/payments
+Authorization: Bearer &lt;token&gt;
+Content-Type: application/json
+
+{
+  "orderId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "amount": 199.98,
+  "currency": "USD",
+  "cardToken": "tok_demo_visa",
+  "customerEmail": "alice@example.com",
+  "providerBehavior": "timeout"
+}</code></pre>
+
+    <h3 id="phase3-cb">Circuit Breaker — the software breaker switch</h3>
+
+    <p>The Circuit Breaker is a fundamental pattern in distributed systems. Think of it as an electrical breaker: when there's an overload (too many consecutive failures), it "trips" and stops new requests from reaching the troubled service. After a cooldown period, it "half-opens" to test whether the service has recovered.</p>
+
+    <div class="diagram">
+      <pre>
+         ┌──────────────────────────────────────────────────────────┐
+         │                   CIRCUIT BREAKER                       │
+         │                                                          │
+         │  CLOSED   ──► too many failures ──►  OPEN               │
+         │  (normal)                            (blocks requests)  │
+         │     ▲                                    │              │
+         │     │                                    ▼              │
+         │     └──── success ────  HALF-OPEN                       │
+         │                         (tests 1 request)               │
+         └──────────────────────────────────────────────────────────┘</pre>
+    </div>
+
+    <div class="pre-label">Payments.Infrastructure/DependencyInjection.cs</div>
+    <pre><code>services.AddHttpClient&lt;<span class="ty">IPaymentProviderClient</span>, <span class="ty">FakePaymentProviderClient</span>&gt;()
+    .AddResilienceHandler(<span class="str">"payments"</span>, pipeline =>
+    {
+        pipeline.AddTimeout(<span class="ty">TimeSpan</span>.FromSeconds(<span class="num">15</span>));      <span class="cm">// overall timeout</span>
+        pipeline.AddRetry(<span class="kw">new</span> <span class="ty">HttpRetryStrategyOptions</span>
+        {
+            MaxRetryAttempts = <span class="num">3</span>,
+            Delay            = <span class="ty">TimeSpan</span>.FromMilliseconds(<span class="num">500</span>),
+            UseJitter        = <span class="kw">true</span>                <span class="cm">// randomized wait</span>
+        });
+        pipeline.AddCircuitBreaker(<span class="kw">new</span> <span class="ty">HttpCircuitBreakerStrategyOptions</span>
+        {
+            FailureRatio      = <span class="num">0.5</span>,  <span class="cm">// trips at 50 % failure rate</span>
+            SamplingDuration  = <span class="ty">TimeSpan</span>.FromSeconds(<span class="num">30</span>),
+            MinimumThroughput = <span class="num">5</span>,    <span class="cm">// needs at least 5 requests</span>
+            BreakDuration     = <span class="ty">TimeSpan</span>.FromSeconds(<span class="num">10</span>)
+        });
+    });</code></pre>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- PHASE 4 -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <h2 id="phase4"><span class="phase-badge ph4">4</span> Phase 4 — Asynchronous Events</h2>
+
+    <p>Up to now, services communicated synchronously: one called another and waited. But what if you want other systems to react to something that happened — without the original service needing to know about all of them?</p>
+
+    <p>That's where <strong>domain events</strong> and a message broker come in.</p>
+
+    <div class="callout info">
+      <div class="callout-icon">📬</div>
+      <div class="callout-body">
+        <strong>Analogy: postal mail</strong>
+        <p>Synchronous communication is like a phone call: you must wait for someone to pick up. Asynchronous communication is like sending a letter: you drop it in the mailbox and carry on with your day. Whoever receives it decides what to do with it, and when.</p>
+      </div>
+    </div>
+
+    <h3 id="phase4-rabbitmq">RabbitMQ — the message broker</h3>
+
+    <p>RabbitMQ is a <em>message broker</em>: a middleman that receives messages from publishers and delivers them to consumers. Services don't need to know each other — they only need to know RabbitMQ.</p>
+
+    <p>Two events are published in this lab:</p>
+
+    <div class="pre-label">BuildingBlocks.Contracts/Events/</div>
+    <pre><code><span class="cm">// Published by the Orders service when an order is confirmed</span>
+<span class="kw">public record</span> <span class="ty">OrderConfirmed</span>(
+    <span class="ty">Guid</span>     OrderId,
+    <span class="ty">string</span>   CustomerName,
+    <span class="ty">string</span>   CustomerEmail,
+    <span class="ty">decimal</span>  TotalAmount,
+    <span class="ty">DateTime</span> ConfirmedAt
+);
+
+<span class="cm">// Published by the Payments service when a payment is approved</span>
+<span class="kw">public record</span> <span class="ty">PaymentApproved</span>(
+    <span class="ty">Guid</span>     PaymentId,
+    <span class="ty">Guid</span>     OrderId,
+    <span class="ty">decimal</span>  Amount,
+    <span class="ty">string</span>   Currency,
+    <span class="ty">string</span>   TransactionId,
+    <span class="ty">string</span>   CustomerEmail,
+    <span class="ty">DateTime</span> ApprovedAt
+);</code></pre>
+
+    <h3 id="phase4-masstransit">MassTransit — the abstraction over RabbitMQ</h3>
+
+    <p>Working directly with the RabbitMQ API is verbose. <strong>MassTransit</strong> is a library that abstracts it away: you think only about <em>publishing</em> and <em>consuming</em> messages, without worrying about channels, exchanges, and bindings.</p>
+
+    <div class="pre-label">Orders.Application/Services/OrderService.cs — publishing an event</div>
+    <pre><code><span class="cm">// The Orders service doesn't know who will receive this event.</span>
+<span class="cm">// It could be Notifications, Analytics, another system — doesn't matter.</span>
+<span class="kw">await</span> _publishEndpoint.Publish(<span class="kw">new</span> <span class="ty">OrderConfirmed</span>(
+    order.Id,
+    order.CustomerName,
+    order.CustomerEmail,
+    order.TotalAmount,
+    <span class="ty">DateTime</span>.UtcNow
+));</code></pre>
+
+    <div class="pre-label">Notifications.Worker/Consumers/OrderConfirmedConsumer.cs — consuming</div>
+    <pre><code><span class="kw">public class</span> <span class="ty">OrderConfirmedConsumer</span> : <span class="ty">IConsumer</span>&lt;<span class="ty">OrderConfirmed</span>&gt;
+{
+    <span class="kw">public</span> <span class="ty">Task</span> <span class="fn">Consume</span>(<span class="ty">ConsumeContext</span>&lt;<span class="ty">OrderConfirmed</span>&gt; context)
+    {
+        <span class="kw">var</span> evt = context.Message;
+        _logger.LogInformation(
+            <span class="str">"[NOTIFICATION] Order {OrderId} confirmed for {Email} — ${Total}"</span>,
+            evt.OrderId, evt.CustomerEmail, evt.TotalAmount);
+
+        <span class="cm">// In production: send email, push notification, SMS...</span>
+        <span class="kw">return</span> <span class="ty">Task</span>.CompletedTask;
+    }
+}</code></pre>
+
+    <div class="callout tip">
+      <div class="callout-icon">🎯</div>
+      <div class="callout-body">
+        <strong>Loose coupling</strong>
+        <p>The Orders service publishes <code>OrderConfirmed</code> and forgets about it. Tomorrow you can add an Analytics service that also consumes that event without changing a single line of Orders code.</p>
+      </div>
+    </div>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- PHASE 5 -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <h2 id="phase5"><span class="phase-badge ph5">5</span> Phase 5 — Observability</h2>
+
+    <p>With several services running, how do you know what's happening? How do you track down a bug that occurred at 3 AM? <strong>Observability</strong> is the set of practices that lets you understand the internal behavior of a system from its outputs.</p>
+
+    <p>This project implements two of the three observability pillars: <strong>structured logging</strong> and <strong>distributed tracing</strong>.</p>
+
+    <h3 id="phase5-correlation">Correlation ID — the thread that ties it all together</h3>
+
+    <p>When a request arrives at the Gateway, passes through the Orders service, which then calls the Catalog — how do you know that all three log lines belong to the same operation?</p>
+
+    <p>The <strong>Correlation ID</strong> is a unique identifier generated for each request and propagated to every service involved. It appears in the <code>X-Correlation-ID</code> HTTP header and in every log line.</p>
+
+    <div class="diagram">
+      <pre>
+Client ─► Gateway  ──► Orders  ──► Catalog
+          X-Corr: abc   X-Corr: abc   X-Corr: abc
+
+LOG (Orders):  {"correlationId":"abc","orderId":"...","event":"OrderCreated"}
+LOG (Catalog): {"correlationId":"abc","productId":"...","event":"StockChecked"}
+               ↑
+               Same ID! You can reconstruct the full request path.</pre>
+    </div>
+
+    <h3 id="phase5-otel">OpenTelemetry + structured logs with Serilog</h3>
+
+    <p>All instrumentation is centralized in <code>BuildingBlocks.Observability</code>, a shared library. Any new service calls <code>builder.AddObservability("service-name")</code> and immediately gets everything:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Capability</th><th>Library</th><th>What you get</th></tr></thead>
+        <tbody>
+          <tr><td><strong>Structured logs</strong></td><td>Serilog + CompactJsonFormatter</td><td>JSON logs ready for tools like Kibana or Grafana Loki</td></tr>
+          <tr><td><strong>HTTP tracing</strong></td><td>OpenTelemetry</td><td>Automatic spans for every inbound and outbound HTTP request</td></tr>
+          <tr><td><strong>Correlation ID</strong></td><td>Custom middleware</td><td>ID propagated across all services and logs</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="pre-label">Sample structured log output (Serilog JSON)</div>
+    <pre><code>{
+  "@t": "2026-09-21T10:23:45.123Z",
+  "@mt": "Order {OrderId} created for {CustomerEmail}",
+  "@l": "Information",
+  "Service": "orders-service",
+  "CorrelationId": "req-abc-123",
+  "OrderId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "CustomerEmail": "alice@example.com"
+}</code></pre>
+
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <!-- PHASE 6 -->
+    <!-- ══════════════════════════════════════════════════════════════════ -->
+    <h2 id="phase6"><span class="phase-badge ph6">6</span> Phase 6 — JWT Authentication</h2>
+
+    <p>Up to now anyone could create products, place orders, and process payments. Phase 6 protects the write routes with <strong>JWT (JSON Web Tokens)</strong> — an open standard for securely transmitting authentication information.</p>
+
+    <div class="callout info">
+      <div class="callout-icon">🎟️</div>
+      <div class="callout-body">
+        <strong>What is a JWT?</strong>
+        <p>Think of it as an event wristband. You go to the entrance, show your ID (credentials), and receive a wristband signed by the organizer. From that point on, at any restricted area you just show the wristband — no need to show your ID again. The wristband has an expiry date and a signature no one can forge.</p>
+      </div>
+    </div>
+
+    <h3 id="phase6-flow">Authentication flow</h3>
+
+    <div class="diagram">
+      <pre>
+  1. Client requests a token
+  ─────────────────────────────────────────────────────────────────────
+  POST http://localhost:5100/auth/token
+  Body: { "clientId": "demo-client", "clientSecret": "demo-secret" }
+
+  Response:
+  { "accessToken": "eyJhbGciOiJIUzI1NiIs...", "tokenType": "Bearer" }
+
+  2. Client uses the token on protected routes
+  ─────────────────────────────────────────────────────────────────────
+  POST http://localhost:5100/api/orders
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIs...
+
+  3. Gateway forwards the token to the destination service
+  ─────────────────────────────────────────────────────────────────────
+  YARP (Gateway) ──► Orders Service
+  Authorization: Bearer eyJhbGciOiJIUzI1NiIs... (copied unchanged)
+
+  4. Service validates the token
+  ─────────────────────────────────────────────────────────────────────
+  ✅ Valid signature? Not expired? Correct issuer/audience?
+     → Allows the operation
+  ❌ Any problem → 401 Unauthorized</pre>
+    </div>
+
+    <h3>Which routes are protected?</h3>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Service</th><th>Route</th><th>Protection</th></tr></thead>
+        <tbody>
+          <tr><td>Catalog</td><td>GET /api/products*</td><td>Public</td></tr>
+          <tr><td>Catalog</td><td>POST / PUT / DELETE /api/products</td><td>🔒 JWT required</td></tr>
+          <tr><td>Orders</td><td>GET /api/orders*</td><td>Public</td></tr>
+          <tr><td>Orders</td><td>POST /api/orders, /confirm, /cancel</td><td>🔒 JWT required</td></tr>
+          <tr><td>Payments</td><td>GET /api/payments*</td><td>Public</td></tr>
+          <tr><td>Payments</td><td>POST /api/payments</td><td>🔒 JWT required</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout warn">
+      <div class="callout-icon">⚠️</div>
+      <div class="callout-body">
+        <strong>For lab use only!</strong>
+        <p>The <code>POST /auth/token</code> endpoint uses hardcoded credentials (<code>demo-client</code> / <code>demo-secret</code>). In production, replace this with a real identity provider such as <strong>Keycloak</strong>, <strong>Auth0</strong>, or <strong>Azure AD B2C</strong>.</p>
+      </div>
+    </div>
+
+    <h3>Shared signing key</h3>
+
+    <p>All services need to validate the same token, so they all use the same signing key (<strong>HS256</strong>). It's injected via environment variable — never baked into a Docker image.</p>
+
+    <div class="pre-label">docker-compose.yml (excerpt)</div>
+    <pre><code>catalog-api:
+  environment:
+    Jwt__SigningKey: <span class="str">"your-secret-key-here-change-in-production"</span>
+    Jwt__Issuer:     <span class="str">"microservices-demo"</span>
+    Jwt__Audience:   <span class="str">"microservices-demo"</span></code></pre>
+
+    <!-- ── GLOSSARY ────────────────────────────────────────────────────── -->
+    <h2 id="glossary">Glossary</h2>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Term</th><th>Plain-English meaning</th></tr></thead>
+        <tbody>
+          <tr><td><strong>API Gateway</strong></td><td>The single front door of the application. Clients only talk to it.</td></tr>
+          <tr><td><strong>Circuit Breaker</strong></td><td>A breaker switch: stops calling a troubled service to protect the system.</td></tr>
+          <tr><td><strong>Consumer</strong></td><td>Code that receives and processes messages from a queue.</td></tr>
+          <tr><td><strong>Correlation ID</strong></td><td>A unique ID that tracks one operation across multiple services.</td></tr>
+          <tr><td><strong>DDD</strong></td><td>Domain-Driven Design: organize code around business rules.</td></tr>
+          <tr><td><strong>DIP</strong></td><td>Dependency Inversion Principle: depend on abstractions, not implementations.</td></tr>
+          <tr><td><strong>Docker Compose</strong></td><td>Tool for starting multiple containers with a single command.</td></tr>
+          <tr><td><strong>EF Core</strong></td><td>Microsoft's ORM for .NET: maps C# classes to database tables.</td></tr>
+          <tr><td><strong>Entity</strong></td><td>A business object with its own identity (e.g., a Product with an ID).</td></tr>
+          <tr><td><strong>Event</strong></td><td>A notification that something happened. E.g., <em>OrderConfirmed</em>.</td></tr>
+          <tr><td><strong>HS256</strong></td><td>Symmetric signing algorithm used for JWTs in this project.</td></tr>
+          <tr><td><strong>JWT</strong></td><td>JSON Web Token: a digital wristband that proves your identity.</td></tr>
+          <tr><td><strong>MassTransit</strong></td><td>Library that simplifies RabbitMQ usage in .NET.</td></tr>
+          <tr><td><strong>Message Broker</strong></td><td>A message intermediary. E.g., RabbitMQ.</td></tr>
+          <tr><td><strong>Migration</strong></td><td>A version-controlled script that evolves the database schema.</td></tr>
+          <tr><td><strong>Monolith</strong></td><td>A single application that does everything. The opposite of microservices.</td></tr>
+          <tr><td><strong>OpenTelemetry</strong></td><td>Open standard for collecting traces, metrics, and logs.</td></tr>
+          <tr><td><strong>ORM</strong></td><td>Object-relational mapper: connects C# objects to a SQL database.</td></tr>
+          <tr><td><strong>Publisher</strong></td><td>Code that sends messages to a queue.</td></tr>
+          <tr><td><strong>RabbitMQ</strong></td><td>Open-source message broker: delivers messages between services.</td></tr>
+          <tr><td><strong>Resilience</strong></td><td>The ability to handle partial failures without a total system collapse.</td></tr>
+          <tr><td><strong>Retry</strong></td><td>Trying again after a failure, with a wait between attempts.</td></tr>
+          <tr><td><strong>Scalar</strong></td><td>Web UI for testing APIs (replaces Swagger in this project).</td></tr>
+          <tr><td><strong>Snapshot</strong></td><td>A copy of data at a specific point in time. E.g., product price in an order.</td></tr>
+          <tr><td><strong>Span</strong></td><td>A unit of work in distributed tracing (e.g., one HTTP call).</td></tr>
+          <tr><td><strong>YARP</strong></td><td>Yet Another Reverse Proxy: Microsoft's library for building API gateways.</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- ── WHAT'S NEXT ─────────────────────────────────────────────────── -->
+    <h2 id="next">What's next</h2>
+
+    <p>The lab covers the main microservices patterns across 6 phases. Here are the natural next directions:</p>
+
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Phase</th><th>Concept</th><th>What you'll learn</th></tr></thead>
+        <tbody>
+          <tr><td><strong>7</strong></td><td>Health Checks</td><td><code>AddHealthChecks()</code> with database and RabbitMQ probes; <code>/health/ready</code> and <code>/health/live</code> endpoints</td></tr>
+          <tr><td><strong>8</strong></td><td>Rate Limiting</td><td>Throttle requests by IP at the Gateway to prevent abuse</td></tr>
+          <tr><td><strong>9</strong></td><td>Saga / Outbox</td><td>Guarantee event delivery even when the database commits but the broker is temporarily unavailable</td></tr>
+          <tr><td><strong>10</strong></td><td>Kubernetes</td><td>Convert docker-compose into K8s manifests and Helm charts</td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="callout tip">
+      <div class="callout-icon">📖</div>
+      <div class="callout-body">
+        <strong>Recommended reading</strong>
+        <ul>
+          <li><em>Building Microservices</em> — Sam Newman (O'Reilly)</li>
+          <li><em>Designing Distributed Systems</em> — Brendan Burns (O'Reilly)</li>
+          <li>.NET official docs: <a href="https://learn.microsoft.com/aspnet/core">learn.microsoft.com/aspnet/core</a></li>
+          <li>MassTransit docs: <a href="https://masstransit.io/documentation">masstransit.io/documentation</a></li>
+        </ul>
+      </div>
+    </div>
+
+    <hr>
+    <p style="color:var(--muted);font-size:.85rem;text-align:center;">
+      MicroservicesDemo · Clayton Humberto · 2026 ·
+      <a href="https://github.com/claytonhumberto/MicroservicesDemo">github.com/claytonhumberto/MicroservicesDemo</a>
+    </p>
+
+  </main>
+</div>
+
+<script>
+const links = document.querySelectorAll('.toc a[href^="#"]');
+const sections = [...links].map(a => document.querySelector(a.getAttribute('href'))).filter(Boolean);
+const observer = new IntersectionObserver(entries => {
+  entries.forEach(entry => {
+    if (entry.isIntersecting) {
+      links.forEach(a => a.classList.remove('active'));
+      const active = [...links].find(a => a.getAttribute('href') === '#' + entry.target.id);
+      if (active) active.classList.add('active');
+    }
+  });
+}, { rootMargin: '-20% 0px -70% 0px' });
+sections.forEach(s => observer.observe(s));
+</script>
