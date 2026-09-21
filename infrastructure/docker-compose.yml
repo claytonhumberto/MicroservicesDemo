@@ -85,6 +85,9 @@ services:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
       ConnectionStrings__CatalogDb: "Host=catalog-db;Port=5432;Database=catalog_db;Username=postgres;Password=postgres"
+      Jwt__SigningKey: "microservices-demo-super-secret-key-change-in-production"
+      Jwt__Issuer: "microservices-demo"
+      Jwt__Audience: "microservices-demo"
     ports:
       - "5101:8080"
     depends_on:
@@ -105,6 +108,9 @@ services:
       RabbitMQ__Host: "rabbitmq"
       RabbitMQ__Username: "guest"
       RabbitMQ__Password: "guest"
+      Jwt__SigningKey: "microservices-demo-super-secret-key-change-in-production"
+      Jwt__Issuer: "microservices-demo"
+      Jwt__Audience: "microservices-demo"
     ports:
       - "5102:8080"
     depends_on:
@@ -129,6 +135,9 @@ services:
       RabbitMQ__Host: "rabbitmq"
       RabbitMQ__Username: "guest"
       RabbitMQ__Password: "guest"
+      Jwt__SigningKey: "microservices-demo-super-secret-key-change-in-production"
+      Jwt__Issuer: "microservices-demo"
+      Jwt__Audience: "microservices-demo"
     ports:
       - "5103:8080"
     depends_on:
@@ -174,6 +183,9 @@ services:
     environment:
       ASPNETCORE_ENVIRONMENT: Development
       ASPNETCORE_URLS: http://+:8080
+      Jwt__SigningKey: "microservices-demo-super-secret-key-change-in-production"
+      Jwt__Issuer: "microservices-demo"
+      Jwt__Audience: "microservices-demo"
     ports:
       - "5100:8080"
     depends_on:

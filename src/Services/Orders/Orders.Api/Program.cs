@@ -9,6 +9,7 @@ using Scalar.AspNetCore;
 var builder = WebApplication.CreateBuilder(args);
 
 builder.AddObservability("orders-service");
+builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddOrdersInfrastructure(builder.Configuration);
@@ -24,6 +25,7 @@ using (var scope = app.Services.CreateScope())
 }
 
 app.UseCorrelationId();
+app.UseJwtAuthentication();
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {

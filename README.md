@@ -624,3 +624,70 @@ A `POST /api/payments` request:
 ```
 
 Each span carries the correlation ID as an attribute, connecting the trace to the structured log lines.
+
+---
+
+## Phase 6 — JWT Authentication
+
+**Concepts covered:** token issuance, HS256 signing, Bearer validation, middleware ordering, YARP header forwarding.
+
+### Design decisions
+
+| Decision | Rationale |
+|---|---|
+| Token endpoint lives in Gateway | Single entry point for auth — clients never call services directly |
+| Shared signing key via environment variable | All services validate the same HS256 signature without a key-exchange service |
+| Write endpoints protected, reads public | Matches realistic APIs: browsing catalog requires no login, placing orders does |
+| YARP forwards `Authorization` header natively | `RequestHeadersCopy: true` transform passes the token to downstream services |
+| `JwtExtensions` in `BuildingBlocks.Observability` | One place to configure `AddJwtAuthentication` + `UseJwtAuthentication`, keeping all service Programs identical |
+
+### Flow
+
+```
+Client
+  │  POST /auth/token  {clientId, clientSecret}
+  ▼
+Gateway ──► issues signed HS256 JWT (sub=clientId, role=Service, exp=+60min)
+  │
+  │  GET/POST /api/*  Authorization: Bearer <token>
+  ▼
+Gateway ──► YARP proxies request; Authorization header is forwarded unchanged
+  ▼
+Catalog / Orders / Payments
+  └─► JwtBearer middleware validates signature, issuer, audience, expiry
+      GET endpoints → public (no [Authorize])
+      POST / PUT / DELETE → [Authorize] required
+```
+
+### Getting a token
+
+```bash
+# 1. Issue a token via the Gateway
+curl -X POST http://localhost:5100/auth/token \
+  -H "Content-Type: application/json" \
+  -d '{"clientId":"demo-client","clientSecret":"demo-secret"}'
+
+# Response
+{
+  "accessToken": "eyJhbGciOiJIUzI1NiIs...",
+  "tokenType": "Bearer",
+  "expiresInMinutes": "60"
+}
+
+# 2. Use it on a protected endpoint
+curl -X POST http://localhost:5100/api/orders \
+  -H "Authorization: Bearer eyJhbGciOiJIUzI1NiIs..." \
+  -H "Content-Type: application/json" \
+  -d '{ ... }'
+
+# 3. Without a token → 401 Unauthorized
+curl -X POST http://localhost:5100/api/orders \
+  -H "Content-Type: application/json" \
+  -d '{ ... }'
+```
+
+### Configuration
+
+The JWT signing key is shared across all services via the `Jwt` configuration section. In Docker Compose it is injected as environment variables (`Jwt__SigningKey`, `Jwt__Issuer`, `Jwt__Audience`) so the key is never baked into an image.
+
+> **Production note:** replace `demo-client` / `demo-secret` with a real identity provider (Keycloak, Auth0, Azure AD B2C). The `JwtExtensions.AddJwtAuthentication` helper is already wired for RS256/RS384 — just swap `SymmetricSecurityKey` for an asymmetric key and remove the token issuance endpoint.

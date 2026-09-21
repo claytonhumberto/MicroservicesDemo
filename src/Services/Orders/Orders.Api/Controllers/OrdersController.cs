@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Orders.Application.DTOs;
 using Orders.Application.Services;
@@ -27,6 +28,7 @@ public class OrdersController(OrderService orderService) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     [ProducesResponseType(typeof(OrderDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -49,6 +51,7 @@ public class OrdersController(OrderService orderService) : ControllerBase
     }
 
     [HttpPost("{id:guid}/confirm")]
+    [Authorize]
     [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]
@@ -70,6 +73,7 @@ public class OrdersController(OrderService orderService) : ControllerBase
     }
 
     [HttpPost("{id:guid}/cancel")]
+    [Authorize]
     [ProducesResponseType(typeof(OrderDto), StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status404NotFound)]
     [ProducesResponseType(StatusCodes.Status422UnprocessableEntity)]

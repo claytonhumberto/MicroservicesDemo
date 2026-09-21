@@ -1,3 +1,4 @@
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Payments.Application.DTOs;
 using Payments.Application.Services;
@@ -35,10 +36,11 @@ public class PaymentsController(PaymentService paymentService) : ControllerBase
     }
 
     /// <summary>
-    /// Process a payment. Use the X-Provider-Behavior header to demo resilience:
+    /// Process a payment. Use X-Provider-Behavior header to demo resilience:
     /// success (default) | fail | timeout | slow
     /// </summary>
     [HttpPost]
+    [Authorize]
     [ProducesResponseType(typeof(PaymentDto), StatusCodes.Status201Created)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> Process(

@@ -1,5 +1,6 @@
 using Catalog.Application.DTOs;
 using Catalog.Application.Services;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Catalog.Api.Controllers;
@@ -37,6 +38,7 @@ public class ProductsController(ProductService productService) : ControllerBase
     }
 
     [HttpPost]
+    [Authorize]
     public async Task<IActionResult> CreateProduct([FromBody] CreateProductRequest request, CancellationToken cancellationToken)
     {
         var product = await productService.CreateProductAsync(request, cancellationToken);
@@ -44,6 +46,7 @@ public class ProductsController(ProductService productService) : ControllerBase
     }
 
     [HttpPut("{id:guid}")]
+    [Authorize]
     public async Task<IActionResult> UpdateProduct(Guid id, [FromBody] UpdateProductRequest request, CancellationToken cancellationToken)
     {
         var product = await productService.UpdateProductAsync(id, request, cancellationToken);
@@ -51,6 +54,7 @@ public class ProductsController(ProductService productService) : ControllerBase
     }
 
     [HttpDelete("{id:guid}")]
+    [Authorize]
     public async Task<IActionResult> DeleteProduct(Guid id, CancellationToken cancellationToken)
     {
         var deleted = await productService.DeleteProductAsync(id, cancellationToken);
