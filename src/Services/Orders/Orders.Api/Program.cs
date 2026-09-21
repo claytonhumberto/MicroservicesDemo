@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddObservability("orders-service");
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApiWithJwt();
 builder.Services.AddOrdersInfrastructure(builder.Configuration);
 builder.Services.AddMassTransitPublisher(builder.Configuration);
 builder.Services.AddScoped<OrderService>();

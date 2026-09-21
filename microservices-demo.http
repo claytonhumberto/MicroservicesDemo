@@ -1,0 +1,231 @@
+### MicroservicesDemo — complete flow
+### Requires the VS Code REST Client extension (or JetBrains HTTP Client).
+### Start the stack first:
+###   cd infrastructure
+###   docker compose --profile full up -d
+###
+### Base URLs
+@gateway  = http://localhost:5100
+@catalog  = http://localhost:5101
+@orders   = http://localhost:5102
+@payments = http://localhost:5103
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 — Gateway health
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Gateway health
+GET {{gateway}}/health
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 — Catalog (public reads)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List products (page 1, 5 per page)
+GET {{gateway}}/api/products?page=1&pageSize=5
+
+### Filter by category
+GET {{gateway}}/api/products?category=Electronics
+
+### List categories
+GET {{gateway}}/api/products/categories
+
+### Get one product — replace {id} with a real ID from the list above
+# @productId = 00000000-0000-0000-0000-000000000000
+GET {{gateway}}/api/products/{{productId}}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 6 — JWT token (must run this before any write endpoint)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Issue JWT — demo credentials (clientId/clientSecret hardcoded for lab use)
+# @name tokenResponse
+POST {{gateway}}/auth/token
+Content-Type: application/json
+
+{
+  "clientId": "demo-client",
+  "clientSecret": "demo-secret"
+}
+
+### Store the token for subsequent requests
+@token = {{tokenResponse.response.body.accessToken}}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 1 — Catalog (protected writes)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Create product (requires JWT)
+# @name createProduct
+POST {{gateway}}/api/products
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Mechanical Keyboard",
+  "description": "Tactile switches, RGB backlight",
+  "price": 149.99,
+  "stockQuantity": 50,
+  "category": "Peripherals",
+  "sku": "KB-MECH-001"
+}
+
+@newProductId = {{createProduct.response.body.id}}
+
+### Update product
+PUT {{gateway}}/api/products/{{newProductId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "name": "Mechanical Keyboard v2",
+  "description": "Tactile switches, RGB backlight, USB-C",
+  "price": 159.99,
+  "stockQuantity": 45,
+  "category": "Peripherals",
+  "sku": "KB-MECH-002"
+}
+
+### Delete product
+DELETE {{gateway}}/api/products/{{newProductId}}
+Authorization: Bearer {{token}}
+
+### Try write without token — expect 401
+POST {{gateway}}/api/products
+Content-Type: application/json
+
+{
+  "name": "Should Fail",
+  "price": 0
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 2 — Orders (synchronous call to Catalog)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### List orders
+GET {{gateway}}/api/orders
+
+### Create order — replace productIds with real IDs from Catalog
+# @name createOrder
+POST {{gateway}}/api/orders
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "customerName": "Alice Smith",
+  "customerEmail": "alice@example.com",
+  "items": [
+    { "productId": "{{productId}}", "quantity": 2 }
+  ]
+}
+
+@orderId = {{createOrder.response.body.id}}
+
+### Get order by ID
+GET {{gateway}}/api/orders/{{orderId}}
+
+### Confirm order (triggers OrderConfirmed event via RabbitMQ)
+POST {{gateway}}/api/orders/{{orderId}}/confirm
+Authorization: Bearer {{token}}
+
+### Cancel order
+# POST {{gateway}}/api/orders/{{orderId}}/cancel
+# Authorization: Bearer {{token}}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 3 — Payments + resilience (FakeProvider behavior via request body)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Process payment — success (default)
+# @name processPayment
+POST {{gateway}}/api/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "amount": 199.98,
+  "currency": "USD",
+  "cardToken": "tok_demo_visa",
+  "customerEmail": "alice@example.com"
+}
+
+@paymentId = {{processPayment.response.body.id}}
+
+### Get payment
+GET {{gateway}}/api/payments/{{paymentId}}
+
+### All payments for an order
+GET {{gateway}}/api/payments/order/{{orderId}}
+
+### Simulate provider decline
+POST {{gateway}}/api/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "amount": 199.98,
+  "currency": "USD",
+  "cardToken": "tok_demo_visa",
+  "customerEmail": "alice@example.com",
+  "providerBehavior": "fail"
+}
+
+### Simulate timeout (triggers retry + circuit breaker)
+POST {{gateway}}/api/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "amount": 199.98,
+  "currency": "USD",
+  "cardToken": "tok_demo_visa",
+  "customerEmail": "alice@example.com",
+  "providerBehavior": "timeout"
+}
+
+### Simulate slow response (within timeout)
+POST {{gateway}}/api/payments
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "orderId": "{{orderId}}",
+  "amount": 199.98,
+  "currency": "USD",
+  "cardToken": "tok_demo_visa",
+  "customerEmail": "alice@example.com",
+  "providerBehavior": "slow"
+}
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Phase 5 — Correlation ID (check response headers)
+# ─────────────────────────────────────────────────────────────────────────────
+
+### Supply your own correlation ID — observe it in logs and the response header
+GET {{gateway}}/api/products
+X-Correlation-ID: my-trace-1234
+
+### Let the middleware generate one — check X-Correlation-ID in the response
+GET {{gateway}}/api/orders
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Direct service health checks (bypass Gateway)
+# ─────────────────────────────────────────────────────────────────────────────
+
+GET {{catalog}}/health
+###
+GET {{orders}}/health
+###
+GET {{payments}}/health

@@ -11,7 +11,7 @@ var builder = WebApplication.CreateBuilder(args);
 builder.AddObservability("catalog-service");
 builder.Services.AddJwtAuthentication(builder.Configuration);
 builder.Services.AddControllers();
-builder.Services.AddOpenApi();
+builder.Services.AddOpenApiWithJwt();
 builder.Services.AddCatalogInfrastructure(builder.Configuration);
 builder.Services.AddScoped<ProductService>();
 
