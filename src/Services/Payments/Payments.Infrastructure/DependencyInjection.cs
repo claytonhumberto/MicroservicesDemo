@@ -1,3 +1,4 @@
+using BuildingBlocks.Observability;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,7 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(providerUrl);
             client.Timeout = TimeSpan.FromSeconds(15);
         })
+        .AddHttpMessageHandler<CorrelationIdDelegatingHandler>()
         .AddStandardResilienceHandler(options =>
         {
             // Allow up to 15 s for the total attempt (including retries).

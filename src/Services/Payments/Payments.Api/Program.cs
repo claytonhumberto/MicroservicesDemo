@@ -1,4 +1,5 @@
 using BuildingBlocks.Messaging;
+using BuildingBlocks.Observability;
 using Microsoft.EntityFrameworkCore;
 using Payments.Application.Services;
 using Payments.Infrastructure;
@@ -7,6 +8,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddObservability("payments-service");
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddPaymentsInfrastructure(builder.Configuration);
@@ -21,6 +23,7 @@ using (var scope = app.Services.CreateScope())
     await db.Database.MigrateAsync();
 }
 
+app.UseCorrelationId();
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {

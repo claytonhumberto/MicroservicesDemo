@@ -1,3 +1,4 @@
+using BuildingBlocks.Observability;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -26,6 +27,7 @@ public static class DependencyInjection
             client.BaseAddress = new Uri(catalogUrl);
             client.Timeout = TimeSpan.FromSeconds(10);
         })
+        .AddHttpMessageHandler<CorrelationIdDelegatingHandler>()
         .AddStandardResilienceHandler(options =>
         {
             options.Retry.MaxRetryAttempts = 3;

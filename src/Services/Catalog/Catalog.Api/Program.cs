@@ -1,3 +1,4 @@
+using BuildingBlocks.Observability;
 using Catalog.Application.Services;
 using Catalog.Infrastructure;
 using Catalog.Infrastructure.Persistence;
@@ -7,6 +8,7 @@ using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
 
+builder.AddObservability("catalog-service");
 builder.Services.AddControllers();
 builder.Services.AddOpenApi();
 builder.Services.AddCatalogInfrastructure(builder.Configuration);
@@ -21,6 +23,7 @@ using (var scope = app.Services.CreateScope())
     await CatalogSeeder.SeedAsync(db);
 }
 
+app.UseCorrelationId();
 app.MapOpenApi();
 app.MapScalarApiReference(options =>
 {

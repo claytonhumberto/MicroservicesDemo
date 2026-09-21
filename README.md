@@ -154,7 +154,7 @@ docker compose --profile full up --build
 - **Phase 2** ✅ — Orders Service + synchronous HTTP communication (Catalog → Orders)
 - **Phase 3** ✅ — Payments Service + Fake Provider + resilience (retry, circuit breaker, timeout)
 - **Phase 4** ✅ — RabbitMQ events + MassTransit + Notifications Worker
-- **Phase 5** — Observability (OpenTelemetry, correlation ID, structured logging)
+- **Phase 5** ✅ — Observability (OpenTelemetry tracing, correlation ID, Serilog JSON logs)
 - **Phase 6** — Authentication between services (JWT)
 
 ---
@@ -570,3 +570,57 @@ With the full stack running (`docker compose --profile full up --build`):
 2. Confirm the order: `POST /api/orders/{id}/confirm` → Notifications Worker logs `[NOTIFICATION] Order confirmed`
 3. Process a payment: `POST /api/payments` with `"providerBehavior": "success"` → Notifications Worker logs `[NOTIFICATION] Payment approved`
 4. Open the RabbitMQ management UI at `http://localhost:15672` (guest/guest) to see the exchanges and queues MassTransit created automatically.
+
+---
+
+## What Was Built — Phase 5
+
+### The observability gap
+
+In a distributed system, a single user action touches multiple services. When something goes wrong, "check the logs" is no longer enough — you need to know which request, across which services, in what order, and with what timing. Without correlation, you have isolated log lines that cannot be connected.
+
+Phase 5 adds three capabilities to every service: structured logging, distributed tracing, and correlation ID propagation.
+
+### Correlation ID — the glue across services
+
+Every incoming HTTP request gets a correlation ID:
+- If the request already has an `X-Correlation-ID` header, that value is reused (so the client can set it).
+- If not, a new `Guid` is generated.
+
+The ID is attached to the response header and pushed into Serilog's `LogContext`, so every log line emitted during that request includes it automatically:
+
+```json
+{"@t":"...","@mt":"Order {OrderId} confirmed","OrderId":"...","CorrelationId":"abc-123","Service":"orders-service"}
+```
+
+`CorrelationIdDelegatingHandler` is registered on every outgoing `HttpClient`. When Orders calls Catalog, or Payments calls the FakeProvider, the same correlation ID is forwarded in the `X-Correlation-ID` header. This lets you trace a single user request across all service logs by grepping for one ID.
+
+### Serilog with compact JSON
+
+All services log in compact JSON format (`CompactJsonFormatter`). Each line is a single JSON object with `@t` (timestamp), `@mt` (message template), structured properties, and enriched fields like `Service` and `CorrelationId`. This format is directly ingestible by Elasticsearch, Seq, Loki, and most log aggregation platforms.
+
+### OpenTelemetry tracing
+
+Each service is configured with:
+- `AddAspNetCoreInstrumentation` — creates a span for every incoming HTTP request
+- `AddHttpClientInstrumentation` — creates a span for every outgoing HttpClient call (Orders→Catalog, Payments→FakeProvider)
+- `AddConsoleExporter` — prints spans to stdout so you can observe them without an external collector
+
+In a production setup, replace `AddConsoleExporter` with `AddOtlpExporter` to send traces to Jaeger, Zipkin, or any OpenTelemetry-compatible backend. The code change is one line.
+
+### What a trace looks like
+
+A `POST /api/orders` request:
+```
+[orders-service] POST /api/orders                     ← incoming span
+  [orders-service] GET http://catalog-api/products/x  ← outgoing span per product
+  [orders-service] GET http://catalog-api/products/y
+```
+
+A `POST /api/payments` request:
+```
+[payments-service] POST /api/payments
+  [payments-service] POST http://fake-provider/charge  ← with retry spans if applicable
+```
+
+Each span carries the correlation ID as an attribute, connecting the trace to the structured log lines.
